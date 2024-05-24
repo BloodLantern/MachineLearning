@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace MachineLearning;
 
@@ -8,10 +9,13 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     private readonly int[] layers;
     private float[][] neurons;
     private float[][][] weights;
+    [NonSerialized]
     public float Fitness = 0;
 
+    [NonSerialized]
     public int Rank;
 
+    [NonSerialized]
     private readonly Random random = new();
 
     public NeuralNetwork(int[] layers)
@@ -142,6 +146,10 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     }
 
     public void ResetNeurons() => InitNeurons();
+
+    public void Save(string path) => File.WriteAllText(path, this.GetXml(true));
+
+    public static NeuralNetwork Load(string path) => File.ReadAllText(path).LoadFromXml<NeuralNetwork>();
 
     public int CompareTo(NeuralNetwork other)
     {

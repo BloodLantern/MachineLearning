@@ -3,7 +3,7 @@ using ImGuiNET;
 using Microsoft.Xna.Framework;
 using NVector2 = System.Numerics.Vector2;
 
-namespace MonoGameTests;
+namespace Arrows;
 
 public static class ImGuiUtils
 {

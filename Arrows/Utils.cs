@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 
-namespace MonoGameTests;
+namespace Arrows;
 
 public static class Utils
 {
