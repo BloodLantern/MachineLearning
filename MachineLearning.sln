@@ -3,9 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.7.34018.315
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tests", "Tests\Tests.csproj", "{2D769662-1437-44E3-93C7-3C7AAE2BC1CC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Models", "Models\Models.csproj", "{2D769662-1437-44E3-93C7-3C7AAE2BC1CC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonoGameTests", "MonoGameTests\MonoGameTests.csproj", "{333FB3F1-933D-48CF-A09F-EB109CB71F9C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arrows", "Arrows\Arrows.csproj", "{333FB3F1-933D-48CF-A09F-EB109CB71F9C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Monogame.ImGuiNet", "MonoGame.ImGuiNet\MonoGame.ImGuiNet\Monogame.ImGuiNet.csproj", "{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{333FB3F1-933D-48CF-A09F-EB109CB71F9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{333FB3F1-933D-48CF-A09F-EB109CB71F9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{333FB3F1-933D-48CF-A09F-EB109CB71F9C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

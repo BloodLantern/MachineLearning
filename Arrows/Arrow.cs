@@ -38,9 +38,11 @@ namespace MonoGameTests
             NeuralNetwork.Fitness += 1f - MathF.Abs(targetAngle - angle) / MathHelper.TwoPi;
         }
 
-        public void Render(SpriteBatch spriteBatch)
+        public void Render(SpriteBatch spriteBatch) => Render(spriteBatch, Color.White);
+
+        public void Render(SpriteBatch spriteBatch, Color tintColor)
         {
-            spriteBatch.Draw(Texture, new(position.ToPoint(), size.ToPoint()), null, Color.White, angle, Texture.Bounds.Size.ToVector2() / 2, SpriteEffects.None, 0);
+            spriteBatch.Draw(Texture, new(position.ToPoint(), size.ToPoint()), null, tintColor, angle, Texture.Bounds.Size.ToVector2() * 0.5f, SpriteEffects.None, 0);
         }
     }
 }
