@@ -1,48 +1,86 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Network;
 using System;
+using MachineLearning;
+using MonoGame.Extended;
 
 namespace MonoGameTests
 {
-    public class Arrow
+    public class Arrow : IComparable<Arrow>
     {
         public static Texture2D Texture;
+        public static Vector2 Size = new(50f);
 
         private const float Velocity = 100f;
-        private static Vector2 size = new(50);
+        private const float MaxAngleTilting = 0.1f;
 
-        private Vector2 position;
-        private float angle;
+        public Vector2 Position { get; private set; }
+        public float Angle { get; private set; }
 
-        private readonly NeuralNetwork NeuralNetwork;
+        public readonly NeuralNetwork NeuralNetwork;
+        public readonly int CurrentRank;
+        public readonly int LastRank;
         
-        public Arrow(Vector2 position, float angle, NeuralNetwork network)
+        public Arrow(Vector2 position, Vector2 targetPosition, NeuralNetwork network, int rank, int lastRank)
         {
-            this.position = position;
-            this.angle = angle;
+            Position = position;
             NeuralNetwork = network;
+            CurrentRank = rank;
+            LastRank = lastRank;
+            
+            Vector2 windowSize = Application.Instance.WindowSize.ToVector2();
+            
+            Angle = NeuralNetwork.FeedForward(
+                [
+                    position.X / windowSize.X,
+                    position.Y / windowSize.Y,
+                    targetPosition.X / windowSize.X,
+                    targetPosition.Y / windowSize.Y
+                ]
+            )[0];
         }
 
         public void Update(GameTime gameTime, Vector2 targetPosition)
         {
-            Vector2 targetDirection = targetPosition - position;
-            float targetAngle = (float) Math.Atan2(targetDirection.Y, targetDirection.X);
+            Vector2 targetDirection = (targetPosition - Position).NormalizedCopy();
+            float targetAngle = MathF.Atan2(targetDirection.Y, targetDirection.X);
 
-            float[] result = NeuralNetwork.FeedForward([angle / MathHelper.TwoPi, targetAngle]);
-            angle = result[0] * MathHelper.TwoPi;
+            Vector2 windowSize = Application.Instance.WindowSize.ToVector2();
+            
+            float[] result = NeuralNetwork.FeedForward(
+                [
+                    Position.X / windowSize.X,
+                    Position.Y / windowSize.Y,
+                    targetPosition.X / windowSize.X,
+                    targetPosition.Y / windowSize.Y
+                ]
+            );
+            float diff = result[0] * MathHelper.TwoPi - Angle;
+            Angle += Math.Clamp(diff, -MaxAngleTilting, MaxAngleTilting);
 
-            position += new Vector2(MathF.Cos(angle) * Velocity, MathF.Sin(angle) * Velocity) * (float) gameTime.ElapsedGameTime.TotalSeconds;
-            position = Vector2.Clamp(position, Vector2.Zero, new(Application.Instance.WindowWidth, Application.Instance.WindowHeight));
+            NeuralNetwork.Fitness += 1f - MathF.Abs(targetAngle - Angle) / MathHelper.TwoPi * 2f;
+            const float MaxDistance = 100f;
+            NeuralNetwork.Fitness += 1f - MathF.Min(MathF.Abs(targetPosition.X - Position.X), MaxDistance) / MaxDistance;
+            NeuralNetwork.Fitness += 1f - MathF.Min(MathF.Abs(targetPosition.Y - Position.Y), MaxDistance) / MaxDistance;
 
-            NeuralNetwork.Fitness += 1f - MathF.Abs(targetAngle - angle) / MathHelper.TwoPi;
+            UpdatePosition(gameTime.GetElapsedSeconds());
         }
 
-        public void Render(SpriteBatch spriteBatch) => Render(spriteBatch, Color.White);
-
-        public void Render(SpriteBatch spriteBatch, Color tintColor)
+        private void UpdatePosition(float deltaTime)
         {
-            spriteBatch.Draw(Texture, new(position.ToPoint(), size.ToPoint()), null, tintColor, angle, Texture.Bounds.Size.ToVector2() * 0.5f, SpriteEffects.None, 0);
+            Position += new Vector2(MathF.Cos(Angle) * Velocity, MathF.Sin(Angle) * Velocity) * deltaTime;
+            Position = Vector2.Clamp(Position, Vector2.Zero, Application.Instance.WindowSize.ToVector2());
+        }
+        
+        public void Render(SpriteBatch spriteBatch, Color tintColor)
+            => spriteBatch.Draw(Texture, new(Position.ToPoint(), Size.ToPoint()), null, tintColor, Angle, Texture.Bounds.Size.ToVector2() * 0.5f, SpriteEffects.None, 0);
+
+        public int CompareTo(Arrow other)
+        {
+            if (CurrentRank < other.CurrentRank)
+                return -1;
+
+            return CurrentRank > other.CurrentRank ? 1 : 0;
         }
     }
 }

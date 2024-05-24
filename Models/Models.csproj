@@ -2,10 +2,11 @@
 
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
-    <RootNamespace />
+    <RootNamespace>MachineLearning</RootNamespace>
+    <LangVersion>default</LangVersion>
   </PropertyGroup>
 
 </Project>
