@@ -23,24 +23,27 @@ public class Application : Game
 
     private readonly Random random = new();
 
-    private const int ArrowCount = 50;
+    private const int ArrowCount = 200;
     private readonly Arrow[] arrows = new Arrow[ArrowCount];
     private readonly NeuralNetwork[] networks = new NeuralNetwork[ArrowCount];
         
-    private const int NetworkInputCount = 4;
-    private readonly int[] networkHiddenLayersCount = [10, 10];
+    private const int NetworkInputCount = 5;
+    private readonly int[] networkHiddenLayersCount = [20, 20, 20, 20];
     private const int NetworkOutputCount = 1;
 
-    private const string savePath = "network_save.xml";
+    private const string SavePath = "network_save.xml";
 
-    private bool resetWorstNeurons;
+    private bool running;
+    private bool runningForOneFrame;
         
     private Vector2 targetPosition;
 
     private float timeBetweenResets = 7f;
-    private float nextResetTime;
+    private float timeLeftBeforeReset;
+    private int currentIteration;
 
-    private int selectedArrowIndex = -1;
+    private bool bestArrowSelected;
+    private Arrow selectedArrow;
 
     public Application()
     {
@@ -58,7 +61,7 @@ public class Application : Game
     {
         imGuiRenderer = new(this);
 
-        InitializeSimulation(0f);
+        InitializeSimulation();
             
         for (int i = 0; i < ArrowCount; i++)
         {
@@ -68,8 +71,11 @@ public class Application : Game
                 networkSize[j + 1] = networkHiddenLayersCount[j];
             networkSize[^1] = NetworkOutputCount;
                 
-            networks[i] = new(networkSize);
-            arrows[i] = new(new(WindowWidth * 0.5f, WindowHeight * 0.5f), targetPosition, networks[i], i, -1);
+            networks[i] = new(networkSize)
+            {
+                Rank = i
+            };
+            arrows[i] = new(new(random.NextSingle() * WindowWidth, random.NextSingle() * WindowHeight), targetPosition, networks[i], -1);
         }
 
         base.Initialize();
@@ -88,26 +94,48 @@ public class Application : Game
     {
         MouseStateExtended mouse = MouseExtended.GetState();
         Vector2 mousePosition = mouse.Position.ToVector2();
-            
-        foreach (Arrow arrow in arrows)
-        {
-            arrow.Update(gameTime, targetPosition);
 
-            if (!mouse.WasButtonJustUp(MouseButton.Left) || ImGui.GetIO().WantCaptureMouse)
-                continue;
+        if (mouse.WasButtonJustUp(MouseButton.Left) && !ImGui.GetIO().WantCaptureMouse)
+        {
+            foreach (Arrow arrow in arrows)
+            {
+                if (mousePosition.X > arrow.Position.X - Arrow.Size.X * 0.5f &&
+                    mousePosition.Y > arrow.Position.Y - Arrow.Size.Y * 0.5f &&
+                    mousePosition.X < arrow.Position.X + Arrow.Size.X * 0.5f &&
+                    mousePosition.Y < arrow.Position.Y + Arrow.Size.Y * 0.5f)
+                {
+                    selectedArrow = arrow;
+                    break;
+                }
                 
-            if (mousePosition.X > arrow.Position.X - Arrow.Size.X * 0.5f &&
-                mousePosition.Y > arrow.Position.Y - Arrow.Size.Y * 0.5f &&
-                mousePosition.X < arrow.Position.X + Arrow.Size.X * 0.5f &&
-                mousePosition.Y < arrow.Position.Y + Arrow.Size.Y * 0.5f)
-                selectedArrowIndex = arrow.CurrentRank;
-            else
-                selectedArrowIndex = -1;
+                selectedArrow = null;
+            }
         }
 
-        float totalTime = (float) gameTime.TotalGameTime.TotalSeconds;
-        if (nextResetTime <= totalTime)
-            ResetSimulation(totalTime);
+        if (running || runningForOneFrame)
+        {
+            foreach (Arrow arrow in arrows)
+                arrow.Update(gameTime, targetPosition);
+
+            if (timeLeftBeforeReset <= 0f)
+            {
+                ResetSimulation();
+            }
+            else
+            {
+                Array.Sort(networks);
+
+                for (int i = 0; i < ArrowCount; i++)
+                    networks[i].Rank = i;
+                
+                Array.Sort(arrows);
+            }
+
+            timeLeftBeforeReset -= gameTime.GetElapsedSeconds();
+
+            if (runningForOneFrame)
+                runningForOneFrame = false;
+        }
 
         base.Update(gameTime);
     }
@@ -120,16 +148,15 @@ public class Application : Game
             
         spriteBatch.DrawCircle(targetPosition, 10f, 20, Color.Red, 10f);
 
-        for (int i = 0; i < ArrowCount; i++)
+        foreach (Arrow arrow in arrows)
         {
-            Arrow arrow = arrows[i];
             Color color = Color.Blue;
-            if (selectedArrowIndex != -1)
+            if (selectedArrow != null)
             {
-                if (i == selectedArrowIndex)
+                if (arrow == selectedArrow)
                     color = Color.Lime;
                 else
-                    color *= 0.1f;
+                    color *= 0.05f;
             }
                 
             arrow.Render(spriteBatch, color);
@@ -150,74 +177,108 @@ public class Application : Game
             
         ImGui.SeparatorText("Settings");
             
-        ImGui.Checkbox("Reset worst neurons", ref resetWorstNeurons);
-
         ImGui.DragFloat("Time between resets", ref timeBetweenResets, 0.1f, 1f);
-        ImGui.TextColored(Color.Orange.ToVector4().ToNumerics(), $"Next reset in {nextResetTime - (float) gameTime.TotalGameTime.TotalSeconds}s");
+        
+        ImGui.SeparatorText("Readonly data");
+        
+        ImGui.Text($"Total time: {gameTime.TotalGameTime}");
+        ImGui.Text($"Current iteration: {currentIteration}");
+        
+        ImGui.TextColored(Color.Orange.ToVector4().ToNumerics(), $"Next reset in {timeLeftBeforeReset}s");
+        ImGui.Text($"Target position {targetPosition}");
             
         ImGui.SeparatorText("Actions");
+
+        ImGui.Checkbox("Running", ref running);
+
+        if (ImGui.Button("Advance one frame"))
+            runningForOneFrame = true;
         
         if (ImGui.Button("Save best"))
-            arrows[0].NeuralNetwork.Save(savePath);
+            arrows[0].NeuralNetwork.Save(SavePath);
 
         if (ImGui.Button("Load save"))
             throw new NotImplementedException();
 
         if (ImGui.Button("Select best arrow"))
-            selectedArrowIndex = 0;
+            selectedArrow = arrows[0];
 
-        if (selectedArrowIndex != -1)
+        if (ImGui.Checkbox("Keep best arrow selected", ref bestArrowSelected) && !bestArrowSelected)
+            selectedArrow = null;
+
+        if (bestArrowSelected)
+            selectedArrow = arrows[0];
+
+        if (selectedArrow != null)
         {
-            Arrow arrow = arrows[selectedArrowIndex];
-            NeuralNetwork network = arrow.NeuralNetwork;
+            NeuralNetwork network = selectedArrow.NeuralNetwork;
                 
             ImGui.SeparatorText("Selected arrow data");
                 
-            ImGui.Text($"Position {arrow.Position}");
-            ImGui.Text($"Angle {arrow.Angle}");
-            Vector2 direction = new(MathF.Cos(arrow.Angle), -MathF.Sin(arrow.Angle));
-            ImGuiUtils.GridPlotting("Direction", ref direction);
+            ImGui.Text($"Position {selectedArrow.Position}");
+            ImGui.Text($"Angle {selectedArrow.Angle}rad = {selectedArrow.Angle / MathHelper.TwoPi * 360f}deg");
+            Vector2 direction = new(MathF.Cos(selectedArrow.Angle), -MathF.Sin(selectedArrow.Angle));
+            ImGuiUtils.DirectionVector("Direction", ref direction, selectedArrow.TargetDirection);
                     
-            ImGui.Text($"Current rank {arrow.CurrentRank}");
-            ImGui.Text($"Last rank {arrow.LastRank}");
+            ImGui.Text($"Current rank {selectedArrow.Rank}");
+            ImGui.Text($"Last rank {selectedArrow.LastRank}");
             ImGui.Text($"Fitness {network.Fitness}");
         }
                 
         ImGui.End();
     }
 
-    private void ResetSimulation(float totalTime)
+    private void ResetSimulation()
     {
         Array.Sort(networks);
 
-        const int HalfArrowCount = ArrowCount / 2;
-        for (int i = 0; i < HalfArrowCount; i++)
+        // Mutate the worst 50%
+        const float MutatedArrowRatio = 0.5f;
+        const int MutatedArrowCount = (int) (ArrowCount * MutatedArrowRatio);
+        const int NonMutatedArrowCount = ArrowCount - MutatedArrowCount;
+        for (int i = 0; i < MutatedArrowCount; i++)
         {
-            networks[HalfArrowCount + i] = new(networks[i]);
-            networks[HalfArrowCount + i].Mutate();
+            NeuralNetwork goodNetwork = networks[i];
+            
+            networks[NonMutatedArrowCount + i] = new(goodNetwork);
+            
+            NeuralNetwork badNetwork = networks[NonMutatedArrowCount + i];
+            
+            badNetwork.Mutate();
 
-            if (resetWorstNeurons)
-                networks[i].ResetNeurons();
-
-            networks[i] = new(networks[i]);
+            networks[i] = new(goodNetwork);
         }
+
+        // Reset the worst 5%
+        const float ResetArrowRatio = 0.05f;
+        const int ResetArrowCount = (int) (ArrowCount * ResetArrowRatio);
+        const int NonResetArrowCount = ArrowCount - ResetArrowCount;
+        for (int i = 0; i < ResetArrowCount; i++)
+            networks[NonResetArrowCount + i].ResetNeurons();
 
         for (int i = 0; i < ArrowCount; i++)
             networks[i].Rank = i;
+        
+        int selectedArrowIndex = selectedArrow?.Rank ?? -1;
 
         for (int i = 0; i < ArrowCount; i++)
-            arrows[i] = new(new(WindowWidth * 0.5f, WindowHeight * 0.5f), targetPosition, networks[i], i, arrows[i].CurrentRank);
-            
+            arrows[i] = new(new(random.NextSingle() * WindowWidth, random.NextSingle() * WindowHeight), targetPosition, networks[i], arrows[i].Rank);
+
+        if (selectedArrowIndex != -1)
+            selectedArrow = arrows[selectedArrowIndex];
+        
         Array.Sort(arrows);
 
-        InitializeSimulation(totalTime);
+        InitializeSimulation();
     }
-        
-    private void InitializeSimulation(float totalTime)
+
+    private void InitializeSimulation()
     {
-        nextResetTime = totalTime + timeBetweenResets;
+        timeLeftBeforeReset = timeBetweenResets;
 
         Vector2 halfWindowSize = WindowSize.ToVector2() * 0.5f;
         targetPosition = random.NextVector2() * halfWindowSize + halfWindowSize * 0.5f;
+
+        currentIteration++;
     }
 }

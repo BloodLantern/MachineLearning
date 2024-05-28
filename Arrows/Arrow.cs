@@ -15,53 +15,60 @@ public class Arrow : IComparable<Arrow>
     private const float MaxAngleTilting = 0.1f;
 
     public Vector2 Position { get; private set; }
+    public Vector2 TargetDirection { get; private set; }
     public float Angle { get; private set; }
+    public float TargetAngle { get; private set; }
 
     public readonly NeuralNetwork NeuralNetwork;
-    public readonly int CurrentRank;
+    public int Rank => NeuralNetwork.Rank;
     public readonly int LastRank;
         
-    public Arrow(Vector2 position, Vector2 targetPosition, NeuralNetwork network, int rank, int lastRank)
+    public Arrow(Vector2 position, Vector2 targetPosition, NeuralNetwork network, int lastRank)
     {
         Position = position;
         NeuralNetwork = network;
-        CurrentRank = rank;
         LastRank = lastRank;
-            
-        Vector2 windowSize = Application.Instance.WindowSize.ToVector2();
+        
+        TargetDirection = (targetPosition - Position).NormalizedCopy();
+        TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X);
             
         Angle = NeuralNetwork.FeedForward(
             [
-                position.X / windowSize.X,
-                position.Y / windowSize.Y,
-                targetPosition.X / windowSize.X,
-                targetPosition.Y / windowSize.Y
+                Angle,
+                position.X,
+                position.Y,
+                targetPosition.X,
+                targetPosition.Y
             ]
         )[0];
     }
 
     public void Update(GameTime gameTime, Vector2 targetPosition)
     {
-        Vector2 targetDirection = (targetPosition - Position).NormalizedCopy();
-        float targetAngle = MathF.Atan2(targetDirection.Y, targetDirection.X);
-
-        Vector2 windowSize = Application.Instance.WindowSize.ToVector2();
+        TargetDirection = (targetPosition - Position).NormalizedCopy();
+        TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X);
             
         float[] result = NeuralNetwork.FeedForward(
             [
-                Position.X / windowSize.X,
-                Position.Y / windowSize.Y,
-                targetPosition.X / windowSize.X,
-                targetPosition.Y / windowSize.Y
+                Angle,
+                Position.X,
+                Position.Y,
+                targetPosition.X,
+                targetPosition.Y
             ]
         );
-        float diff = result[0] * MathHelper.TwoPi - Angle;
-        Angle += Math.Clamp(diff, -MaxAngleTilting, MaxAngleTilting);
+        Angle += Math.Clamp(result[0], -MaxAngleTilting, MaxAngleTilting);
+        Angle %= MathHelper.TwoPi;
 
-        NeuralNetwork.Fitness += 1f - MathF.Abs(targetAngle - Angle) / MathHelper.TwoPi * 2f;
-        const float MaxDistance = 100f;
-        NeuralNetwork.Fitness += 1f - MathF.Min(MathF.Abs(targetPosition.X - Position.X), MaxDistance) / MaxDistance;
-        NeuralNetwork.Fitness += 1f - MathF.Min(MathF.Abs(targetPosition.Y - Position.Y), MaxDistance) / MaxDistance;
+        const float AngleFitnessValue = 10f;
+        const float PositionXFitnessValue = 1f;
+        const float PositionYFitnessValue = 1f;
+        float fitnessDiff = AngleFitnessValue - MathF.Abs(TargetAngle - Angle) / MathHelper.PiOver4 * AngleFitnessValue;
+        const float MaxDistance = 200f;
+        fitnessDiff += PositionXFitnessValue - MathF.Abs(targetPosition.X - Position.X) / MaxDistance * PositionXFitnessValue;
+        fitnessDiff += PositionYFitnessValue - MathF.Abs(targetPosition.Y - Position.Y) / MaxDistance * PositionYFitnessValue;
+        
+        NeuralNetwork.Fitness += fitnessDiff;
 
         UpdatePosition(gameTime.GetElapsedSeconds());
     }
@@ -77,9 +84,9 @@ public class Arrow : IComparable<Arrow>
 
     public int CompareTo(Arrow other)
     {
-        if (CurrentRank < other.CurrentRank)
+        if (Rank < other.Rank)
             return -1;
 
-        return CurrentRank > other.CurrentRank ? 1 : 0;
+        return Rank > other.Rank ? 1 : 0;
     }
 }

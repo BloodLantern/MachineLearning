@@ -4,26 +4,31 @@ using System.IO;
 
 namespace MachineLearning;
 
+[Serializable]
 public class NeuralNetwork : IComparable<NeuralNetwork>
 {
-    private readonly int[] layers;
-    private float[][] neurons;
-    private float[][][] weights;
+    public int[] Layers { get; set; }
+    public float[][] Neurons { get; set; }
+    public float[][][] Weights { get; set; }
+    
     [NonSerialized]
     public float Fitness = 0;
 
     [NonSerialized]
     public int Rank;
 
-    [NonSerialized]
     private readonly Random random = new();
+
+    public NeuralNetwork()
+    {
+    }
 
     public NeuralNetwork(int[] layers)
     {
-        this.layers = new int[layers.Length];
+        Layers = new int[layers.Length];
 
         for (int i = 0; i < layers.Length; i++)
-            this.layers[i] = layers[i];
+            Layers[i] = layers[i];
 
         InitNeurons();
         InitWeights();
@@ -31,37 +36,37 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
 
     public NeuralNetwork(NeuralNetwork copy)
     {
-        layers = new int[copy.layers.Length];
+        Layers = new int[copy.Layers.Length];
 
-        for (int i = 0; i < copy.layers.Length; i++)
-            layers[i] = copy.layers[i];
+        for (int i = 0; i < copy.Layers.Length; i++)
+            Layers[i] = copy.Layers[i];
 
         InitNeurons();
         InitWeights();
-        CopyWeights(copy.weights);
+        CopyWeights(copy.Weights);
     }
 
     private void InitNeurons()
     {
-        List<float[]> neuronsList = new();
+        List<float[]> neuronsList = [];
 
-        foreach (int layer in layers)
+        foreach (int layer in Layers)
             neuronsList.Add(new float[layer]);
 
-        neurons = neuronsList.ToArray();
+        Neurons = neuronsList.ToArray();
     }
 
     private void InitWeights()
     {
-        List<float[][]> weightsList = new();
+        List<float[][]> weightsList = [];
 
-        for (int i = 1; i < layers.Length; i++)
+        for (int i = 1; i < Layers.Length; i++)
         {
-            List<float[]> layerWeightList = new();
+            List<float[]> layerWeightList = [];
 
-            int neuronsInPreviousLayer = layers[i - 1];
+            int neuronsInPreviousLayer = Layers[i - 1];
 
-            for (int j = 0; j < neurons[i].Length; j++)
+            for (int j = 0; j < Neurons[i].Length; j++)
             {
                 float[] neuronWeights = new float[neuronsInPreviousLayer];
 
@@ -75,17 +80,17 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             weightsList.Add(layerWeightList.ToArray());
         }
 
-        weights = weightsList.ToArray();
+        Weights = weightsList.ToArray();
     }
 
     private void CopyWeights(float[][][] copyWeights)
     {
-        for (int i = 0; i < weights.Length; i++)
+        for (int i = 0; i < Weights.Length; i++)
         {
-            for (int j = 0; j < weights[i].Length; j++)
+            for (int j = 0; j < Weights[i].Length; j++)
             {
-                for (int k = 0; k < weights[i][j].Length; k++)
-                    weights[i][j][k] = copyWeights[i][j][k];
+                for (int k = 0; k < Weights[i][j].Length; k++)
+                    Weights[i][j][k] = copyWeights[i][j][k];
             }
         }
     }
@@ -93,27 +98,27 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     public float[] FeedForward(float[] inputs)
     {
         for (int i = 0; i < inputs.Length; i++)
-            neurons[0][i] = inputs[i];
+            Neurons[0][i] = inputs[i];
 
-        for (int i = 1; i < layers.Length; i++)
+        for (int i = 1; i < Layers.Length; i++)
         {
-            for (int j = 0; j < neurons[i].Length; j++)
+            for (int j = 0; j < Neurons[i].Length; j++)
             {
                 float value = 0.25f;
 
-                for (int k = 0; k < neurons[i - 1].Length; k++)
-                    value += weights[i - 1][j][k] * neurons[i - 1][k];
+                for (int k = 0; k < Neurons[i - 1].Length; k++)
+                    value += Weights[i - 1][j][k] * Neurons[i - 1][k];
 
-                neurons[i][j] = MathF.Tanh(value);
+                Neurons[i][j] = MathF.Tanh(value);
             }
         }
 
-        return neurons[^1];
+        return Neurons[^1];
     }
 
     public void Mutate()
     {
-        foreach (float[][] weightMatrix in weights)
+        foreach (float[][] weightMatrix in Weights)
         {
             foreach (float[] weightRow in weightMatrix)
             {

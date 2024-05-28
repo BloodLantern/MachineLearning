@@ -29,7 +29,7 @@ public static class XmlSerializationHelper
             ns.Add("", ""); // Disable the xmlns:xsi and xmlns:xsd lines.
         }
         using StringWriter textWriter = new();
-        XmlWriterSettings settings = new() { Indent = true, IndentChars = "    ", Encoding = Encoding.UTF8 }; // For cosmetic purposes.
+        XmlWriterSettings settings = new() { Indent = true, IndentChars = "    ", Encoding = Encoding.Default }; // For cosmetic purposes.
         using (XmlWriter xmlWriter = XmlWriter.Create(textWriter, settings))
             (serializer ?? new XmlSerializer(obj.GetType())).Serialize(xmlWriter, obj, ns);
         return textWriter.ToString();
