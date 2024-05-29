@@ -1,5 +1,6 @@
 ﻿using System;
-using MachineLearning;
+using MachineLearning.Models;
+using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
@@ -80,7 +81,7 @@ public class Arrow : IComparable<Arrow>
     }
         
     public void Render(SpriteBatch spriteBatch, Color tintColor)
-        => spriteBatch.Draw(Texture, new(Position.ToPoint(), Size.ToPoint()), null, tintColor, Angle, Texture.Bounds.Size.ToVector2() * 0.5f, SpriteEffects.None, 0);
+        => spriteBatch.Draw(Texture, new(Position.ToPoint(), Size.ToPoint()), null, tintColor, Angle, Texture.Bounds.Size.ToVector2() * 0.5f, SpriteEffects.None, 0f);
 
     public int CompareTo(Arrow other)
     {

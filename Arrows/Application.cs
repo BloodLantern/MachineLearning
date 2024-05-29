@@ -1,6 +1,7 @@
 ﻿using System;
 using ImGuiNET;
-using MachineLearning;
+using MachineLearning.Models;
+using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
@@ -216,7 +217,7 @@ public class Application : Game
             ImGui.SeparatorText("Selected arrow data");
                 
             ImGui.Text($"Position {selectedArrow.Position}");
-            ImGui.Text($"Angle {selectedArrow.Angle}rad = {selectedArrow.Angle / MathHelper.TwoPi * 360f}deg");
+            ImGui.Text($"Angle {selectedArrow.Angle}rad = {MathHelper.ToDegrees(selectedArrow.Angle)}deg");
             Vector2 direction = new(MathF.Cos(selectedArrow.Angle), -MathF.Sin(selectedArrow.Angle));
             ImGuiUtils.DirectionVector("Direction", ref direction, selectedArrow.TargetDirection);
                     
