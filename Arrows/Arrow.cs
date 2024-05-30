@@ -33,13 +33,14 @@ public class Arrow : IComparable<Arrow>
         TargetDirection = (targetPosition - Position).NormalizedCopy();
         TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X);
             
+        Vector2 windowSize = Application.Instance.WindowSize.ToVector2();
         Angle = NeuralNetwork.FeedForward(
             [
-                Angle,
-                position.X,
-                position.Y,
-                targetPosition.X,
-                targetPosition.Y
+                Angle / MathHelper.TwoPi,
+                Position.X / windowSize.X,
+                Position.Y / windowSize.Y,
+                targetPosition.X / windowSize.X,
+                targetPosition.Y / windowSize.Y
             ]
         )[0];
     }
@@ -48,17 +49,18 @@ public class Arrow : IComparable<Arrow>
     {
         TargetDirection = (targetPosition - Position).NormalizedCopy();
         TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X);
-            
+        
+        Vector2 windowSize = Application.Instance.WindowSize.ToVector2();
         float[] result = NeuralNetwork.FeedForward(
             [
-                Angle,
-                Position.X,
-                Position.Y,
-                targetPosition.X,
-                targetPosition.Y
+                Angle / MathHelper.TwoPi,
+                Position.X / windowSize.X,
+                Position.Y / windowSize.Y,
+                targetPosition.X / windowSize.X,
+                targetPosition.Y / windowSize.Y
             ]
         );
-        Angle += Math.Clamp(result[0], -MaxAngleTilting, MaxAngleTilting);
+        Angle += Math.Clamp(result[0] * MathHelper.TwoPi, -MaxAngleTilting, MaxAngleTilting);
         Angle %= MathHelper.TwoPi;
 
         const float AngleFitnessValue = 10f;

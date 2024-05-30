@@ -6,9 +6,8 @@ namespace MachineLearning.Models.NeuralNetwork;
 public class Neuron
 {
     public float Value;
+    
     public float[] Weights;
-
-    private readonly Random random = new();
 
     public Neuron()
     {
@@ -16,7 +15,7 @@ public class Neuron
 
     public Neuron(float value) => Value = value;
 
-    public void InitWeights(int neuronsInPreviousLayer)
+    public void InitWeights(int neuronsInPreviousLayer, Random random)
     {
         Weights = new float[neuronsInPreviousLayer];
         
@@ -31,7 +30,7 @@ public class Neuron
             Weights[i] = weights[i];
     }
 
-    public void Mutate()
+    public void Mutate(Random random)
     {
         for (int i = 0; i < Weights.Length; i++)
         {

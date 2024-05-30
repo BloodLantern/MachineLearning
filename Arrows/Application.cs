@@ -42,7 +42,7 @@ public class Application : Game
     private float timeBetweenResets = 7f;
     private float timeLeftBeforeReset;
     private int currentIteration;
-
+    
     private bool bestArrowSelected;
     private Arrow selectedArrow;
 
@@ -76,7 +76,7 @@ public class Application : Game
             {
                 Rank = i
             };
-            arrows[i] = new(new(random.NextSingle() * WindowWidth, random.NextSingle() * WindowHeight), targetPosition, networks[i], -1);
+            arrows[i] = new(GetRandomPosition(), targetPosition, networks[i], -1);
         }
 
         base.Initialize();
@@ -197,12 +197,12 @@ public class Application : Game
 
         if (ImGui.Button("Advance one frame"))
             runningForOneFrame = true;
-        
+
         if (ImGui.Button("Save best"))
-            arrows[0].NeuralNetwork.Save(SavePath);
+            SaveBestNetwork();
 
         if (ImGui.Button("Load save"))
-            throw new NotImplementedException();
+            LoadSavedNetwork();
 
         if (ImGui.Button("Select best arrow"))
             selectedArrow = arrows[0];
@@ -266,7 +266,7 @@ public class Application : Game
         int selectedArrowIndex = selectedArrow?.Rank ?? -1;
 
         for (int i = 0; i < ArrowCount; i++)
-            arrows[i] = new(new(random.NextSingle() * WindowWidth, random.NextSingle() * WindowHeight), targetPosition, networks[i], arrows[i].Rank);
+            arrows[i] = new(GetRandomPosition(), targetPosition, networks[i], arrows[i].Rank);
 
         if (selectedArrowIndex != -1)
             selectedArrow = arrows[selectedArrowIndex];
@@ -285,4 +285,16 @@ public class Application : Game
 
         currentIteration++;
     }
+
+    private void SaveBestNetwork() => arrows[0].NeuralNetwork.Save(SavePath);
+
+    private void LoadSavedNetwork()
+    {
+        for (int i = 0; i < arrows.Length; i++)
+            arrows[i] = new(GetRandomPosition(), targetPosition, NeuralNetwork.Load(SavePath), -1);
+        
+        ResetSimulation();
+    }
+
+    private Vector2 GetRandomPosition() => new(random.NextSingle() * WindowWidth, random.NextSingle() * WindowHeight);
 }

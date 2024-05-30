@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Xml.Serialization;
 using MachineLearning.Utils;
 
 namespace MachineLearning.Models.NeuralNetwork;
@@ -10,15 +11,16 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
 {
     public Layer[] Layers;
     
-    [NonSerialized]
+    [XmlIgnore]
     public float Fitness = 0;
 
-    [NonSerialized]
+    [XmlIgnore]
     public int Rank;
 
-    public NeuralNetwork()
-    {
-    }
+    [XmlIgnore]
+    private readonly Random random;
+
+    public NeuralNetwork() => random = new(DateTime.Now.Millisecond);
 
     public NeuralNetwork(int[] layers)
     {
@@ -30,10 +32,12 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         for (int i = 0; i < layers.Length; i++)
         {
             if (layers[i] < 1)
-                throw new ArgumentException("All NeuralNetwork Layers must have at least 1 neuron");
+                throw new ArgumentException("All NeuralNetwork Layers must have at least 1 Neuron");
             
             Layers[i] = new(layers[i]);
         }
+
+        random = new(DateTime.Now.Millisecond);
 
         InitNeurons();
         InitWeights();
@@ -45,6 +49,8 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
 
         for (int i = 0; i < copy.Layers.Length; i++)
             Layers[i] = copy.Layers[i];
+
+        random = new(DateTime.Now.Millisecond);
 
         InitNeurons();
         InitWeights();
@@ -60,7 +66,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     private void InitWeights()
     {
         for (int i = 1; i < Layers.Length; i++)
-            Layers[i].InitWeights(Layers[i - 1]);
+            Layers[i].InitWeights(Layers[i - 1], random);
     }
 
     private void CopyWeights(IReadOnlyList<Layer> layers)
@@ -89,7 +95,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     public void Mutate()
     {
         for (int i = 1; i < Layers.Length; i++)
-            Layers[i].Mutate();
+            Layers[i].Mutate(random);
     }
 
     public void ResetNeurons()

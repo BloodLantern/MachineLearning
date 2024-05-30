@@ -9,6 +9,10 @@ public class Layer
     
     public Neuron[] Neurons;
 
+    public Layer()
+    {
+    }
+
     public Layer(int size) => Neurons = new Neuron[size];
 
     public void InitNeurons()
@@ -17,10 +21,10 @@ public class Layer
             Neurons[i] = new();
     }
 
-    public void InitWeights(Layer previousLayer)
+    public void InitWeights(Layer previousLayer, Random random)
     {
         foreach (Neuron neuron in Neurons)
-            neuron.InitWeights(previousLayer.Size);
+            neuron.InitWeights(previousLayer.Size, random);
     }
 
     public void CopyWeights(Neuron[] neurons)
@@ -31,20 +35,20 @@ public class Layer
 
     public void FeedForward(Neuron[] previousNeurons)
     {
-        for (int j = 0; j < Neurons.Length; j++)
+        foreach (Neuron neuron in Neurons)
         {
             float value = 0.25f;
 
             for (int k = 0; k < previousNeurons.Length; k++)
-                value += Neurons[j].Weights[k] * previousNeurons[k].Value;
+                value += neuron.Weights[k] * previousNeurons[k].Value;
 
-            Neurons[j].Value = MathF.Tanh(value);
+            neuron.Value = MathF.Tanh(value);
         }
     }
 
-    public void Mutate()
+    public void Mutate(Random random)
     {
         foreach (Neuron neuron in Neurons)
-            neuron.Mutate();
+            neuron.Mutate(random);
     }
 }
