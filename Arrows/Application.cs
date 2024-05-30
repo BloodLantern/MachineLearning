@@ -192,6 +192,9 @@ public class Application : Game
 
         ImGui.Checkbox("Running", ref running);
 
+        if (ImGui.Button("Advance one generation"))
+            ResetSimulation();
+
         if (ImGui.Button("Advance one frame"))
             runningForOneFrame = true;
         

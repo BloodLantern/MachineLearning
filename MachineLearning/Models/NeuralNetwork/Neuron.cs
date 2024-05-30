@@ -58,6 +58,4 @@ public class Neuron
             Weights[i] = weight;
         }
     }
-
-    public static implicit operator float(Neuron neuron) => neuron.Value;
 }

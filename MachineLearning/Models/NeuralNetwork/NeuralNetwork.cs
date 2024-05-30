@@ -16,8 +16,6 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     [NonSerialized]
     public int Rank;
 
-    private readonly Random random = new();
-
     public NeuralNetwork()
     {
     }
@@ -32,7 +30,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         for (int i = 0; i < layers.Length; i++)
         {
             if (layers[i] < 1)
-                throw new ArgumentException("A NeuralNetwork Layer must have at least 1 neuron");
+                throw new ArgumentException("All NeuralNetwork Layers must have at least 1 neuron");
             
             Layers[i] = new(layers[i]);
         }
@@ -61,15 +59,13 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
 
     private void InitWeights()
     {
-        Layers[0].InitWeights(Layers[1]);
-        
         for (int i = 1; i < Layers.Length; i++)
             Layers[i].InitWeights(Layers[i - 1]);
     }
 
     private void CopyWeights(IReadOnlyList<Layer> layers)
     {
-        for (int i = 0; i < layers.Count; i++)
+        for (int i = 1; i < layers.Count; i++)
             Layers[i].CopyWeights(layers[i].Neurons);
     }
 
@@ -85,18 +81,22 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         float[] result = new float[lastLayerNeurons.Length];
 
         for (int i = 0; i < result.Length; i++)
-            result[i] = lastLayerNeurons[i];
+            result[i] = lastLayerNeurons[i].Value;
 
         return result;
     }
 
     public void Mutate()
     {
-        foreach (Layer layer in Layers)
-            layer.Mutate();
+        for (int i = 1; i < Layers.Length; i++)
+            Layers[i].Mutate();
     }
 
-    public void ResetNeurons() => InitNeurons();
+    public void ResetNeurons()
+    {
+        InitNeurons();
+        InitWeights();
+    }
 
     public void Save(string path) => File.WriteAllText(path, this.GetXml(true));
 

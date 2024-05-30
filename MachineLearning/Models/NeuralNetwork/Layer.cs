@@ -5,6 +5,8 @@ namespace MachineLearning.Models.NeuralNetwork;
 [Serializable]
 public class Layer
 {
+    public int Size => Neurons.Length;
+    
     public Neuron[] Neurons;
 
     public Layer(int size) => Neurons = new Neuron[size];
@@ -18,7 +20,7 @@ public class Layer
     public void InitWeights(Layer previousLayer)
     {
         foreach (Neuron neuron in Neurons)
-            neuron.InitWeights(previousLayer);
+            neuron.InitWeights(previousLayer.Size);
     }
 
     public void CopyWeights(Neuron[] neurons)
@@ -34,7 +36,7 @@ public class Layer
             float value = 0.25f;
 
             for (int k = 0; k < previousNeurons.Length; k++)
-                value += previousNeurons[j].Weights[k] * previousNeurons[k];
+                value += Neurons[j].Weights[k] * previousNeurons[k].Value;
 
             Neurons[j].Value = MathF.Tanh(value);
         }
@@ -45,6 +47,4 @@ public class Layer
         foreach (Neuron neuron in Neurons)
             neuron.Mutate();
     }
-
-    public static implicit operator int(Layer layer) => layer.Neurons.Length;
 }
