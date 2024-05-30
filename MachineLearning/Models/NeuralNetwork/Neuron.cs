@@ -5,26 +5,26 @@ namespace MachineLearning.Models.NeuralNetwork;
 [Serializable]
 public class Neuron
 {
-    public float Value;
+    public double Value;
     
-    public float[] Weights;
+    public double[] Weights;
 
     public Neuron()
     {
     }
 
-    public Neuron(float value) => Value = value;
+    public Neuron(double value) => Value = value;
 
     public void InitWeights(int neuronsInPreviousLayer, Random random)
     {
-        Weights = new float[neuronsInPreviousLayer];
+        Weights = new double[neuronsInPreviousLayer];
         
         // Set the weights randomly between -1 and 1
         for (int k = 0; k < neuronsInPreviousLayer; k++)
-            Weights[k] = random.NextSingle() - 0.5f;
+            Weights[k] = random.NextSingle() - 0.5;
     }
 
-    public void CopyWeights(float[] weights)
+    public void CopyWeights(double[] weights)
     {
         for (int i = 0; i < weights.Length; i++)
             Weights[i] = weights[i];
@@ -34,23 +34,23 @@ public class Neuron
     {
         for (int i = 0; i < Weights.Length; i++)
         {
-            float weight = Weights[i];
+            double weight = Weights[i];
 
-            float randomNumber = random.NextSingle() * 1000f;
+            double randomNumber = random.NextDouble() * 1000.0;
 
             switch (randomNumber)
             {
-                case <= 2f:
-                    weight *= -1f;
+                case <= 2.0:
+                    weight *= -1.0;
                     break;
-                case <= 4f:
-                    weight = random.NextSingle() - 0.5f;
+                case <= 4.0:
+                    weight = random.NextDouble() - 0.5;
                     break;
-                case <= 6f:
-                    weight *= random.NextSingle() + 1f;
+                case <= 6.0:
+                    weight *= random.NextDouble() + 1.0;
                     break;
-                case <= 8f:
-                    weight *= random.NextSingle();
+                case <= 8.0:
+                    weight *= random.NextDouble();
                     break;
             }
 

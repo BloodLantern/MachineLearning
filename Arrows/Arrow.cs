@@ -1,5 +1,4 @@
 ﻿using System;
-using MachineLearning.Models;
 using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -33,14 +32,13 @@ public class Arrow : IComparable<Arrow>
         TargetDirection = (targetPosition - Position).NormalizedCopy();
         TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X);
             
-        Vector2 windowSize = Application.Instance.WindowSize.ToVector2();
-        Angle = NeuralNetwork.FeedForward(
+        Angle = (float) NeuralNetwork.FeedForward(
             [
-                Angle / MathHelper.TwoPi,
-                Position.X / windowSize.X,
-                Position.Y / windowSize.Y,
-                targetPosition.X / windowSize.X,
-                targetPosition.Y / windowSize.Y
+                Angle,
+                Position.X,
+                Position.Y,
+                targetPosition.X,
+                targetPosition.Y
             ]
         )[0];
     }
@@ -50,17 +48,17 @@ public class Arrow : IComparable<Arrow>
         TargetDirection = (targetPosition - Position).NormalizedCopy();
         TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X);
         
-        Vector2 windowSize = Application.Instance.WindowSize.ToVector2();
-        float[] result = NeuralNetwork.FeedForward(
+        double[] result = NeuralNetwork.FeedForward(
             [
-                Angle / MathHelper.TwoPi,
-                Position.X / windowSize.X,
-                Position.Y / windowSize.Y,
-                targetPosition.X / windowSize.X,
-                targetPosition.Y / windowSize.Y
+                Angle,
+                Position.X,
+                Position.Y,
+                targetPosition.X,
+                targetPosition.Y
             ]
         );
-        Angle += Math.Clamp(result[0] * MathHelper.TwoPi, -MaxAngleTilting, MaxAngleTilting);
+        //Angle += Math.Clamp((float) result[0] - Angle, -MaxAngleTilting, MaxAngleTilting);
+        Angle = (float) result[0];
         Angle %= MathHelper.TwoPi;
 
         const float AngleFitnessValue = 10f;

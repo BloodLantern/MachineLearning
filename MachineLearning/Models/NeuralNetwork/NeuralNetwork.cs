@@ -12,7 +12,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     public Layer[] Layers;
     
     [XmlIgnore]
-    public float Fitness = 0;
+    public double Fitness = 0;
 
     [XmlIgnore]
     public int Rank;
@@ -75,8 +75,11 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].CopyWeights(layers[i].Neurons);
     }
 
-    public float[] FeedForward(float[] inputs)
+    public double[] FeedForward(double[] inputs)
     {
+        if (inputs.Length != Layers[0].Size)
+            throw new ArgumentException("Inputs array has the wrong size");
+        
         for (int i = 0; i < inputs.Length; i++)
             Layers[0].Neurons[i].Value = inputs[i];
 
@@ -84,7 +87,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].FeedForward(Layers[i - 1].Neurons);
 
         Neuron[] lastLayerNeurons = Layers[^1].Neurons;
-        float[] result = new float[lastLayerNeurons.Length];
+        double[] result = new double[lastLayerNeurons.Length];
 
         for (int i = 0; i < result.Length; i++)
             result[i] = lastLayerNeurons[i].Value;
@@ -102,6 +105,8 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     {
         InitNeurons();
         InitWeights();
+        
+        Mutate();
     }
 
     public void Save(string path) => File.WriteAllText(path, this.GetXml(true));

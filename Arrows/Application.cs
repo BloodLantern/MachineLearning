@@ -1,6 +1,5 @@
 ﻿using System;
 using ImGuiNET;
-using MachineLearning.Models;
 using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -55,7 +54,6 @@ public class Application : Game
 
         WindowWidth = 1280;
         WindowHeight = 720;
-        TargetElapsedTime = new(0, 0, 0, 0, 7);
     }
 
     protected override void Initialize()
@@ -182,6 +180,7 @@ public class Application : Game
         
         ImGui.SeparatorText("Readonly data");
         
+        ImGui.Text($"FPS: {1f / gameTime.GetElapsedSeconds()}");
         ImGui.Text($"Total time: {gameTime.TotalGameTime}");
         ImGui.Text($"Current iteration: {currentIteration}");
         
@@ -249,20 +248,14 @@ public class Application : Game
             NeuralNetwork badNetwork = networks[NonMutatedArrowCount + i];
             
             badNetwork.Mutate();
-
-            networks[i] = new(goodNetwork);
         }
 
-        // Reset the worst 5%
-        const float ResetArrowRatio = 0.05f;
-        const int ResetArrowCount = (int) (ArrowCount * ResetArrowRatio);
-        const int NonResetArrowCount = ArrowCount - ResetArrowCount;
-        for (int i = 0; i < ResetArrowCount; i++)
-            networks[NonResetArrowCount + i].ResetNeurons();
-
         for (int i = 0; i < ArrowCount; i++)
+        {
             networks[i].Rank = i;
-        
+            networks[i].Fitness = 0.0;
+        }
+
         int selectedArrowIndex = selectedArrow?.Rank ?? -1;
 
         for (int i = 0; i < ArrowCount; i++)

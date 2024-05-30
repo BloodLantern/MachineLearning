@@ -37,12 +37,12 @@ public class Layer
     {
         foreach (Neuron neuron in Neurons)
         {
-            float value = 0.25f;
+            double value = 0.25;
 
             for (int k = 0; k < previousNeurons.Length; k++)
                 value += neuron.Weights[k] * previousNeurons[k].Value;
 
-            neuron.Value = MathF.Tanh(value);
+            neuron.Value = Math.Tanh(value);
         }
     }
 
