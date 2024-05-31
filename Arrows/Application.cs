@@ -23,7 +23,7 @@ public class Application : Game
     public int WindowHeight { get => graphics.PreferredBackBufferHeight; init => graphics.PreferredBackBufferHeight = value; }
     public Point WindowSize => new(WindowWidth, WindowHeight);
 
-    private readonly Random random = new();
+    private readonly Random random;
 
     private const int ArrowCount = 200;
     private readonly Arrow[] arrows = new Arrow[ArrowCount];
@@ -63,8 +63,8 @@ public class Application : Game
         IsMouseVisible = true;
 
         Window.AllowUserResizing = true;
-        WindowWidth = 1280;
-        WindowHeight = 720;
+        WindowWidth = 1600;
+        WindowHeight = 900;
 
         IsFixedTimeStep = false;
         graphics.SynchronizeWithVerticalRetrace = true;
@@ -72,6 +72,8 @@ public class Application : Game
         startingArrowPosition = new(WindowWidth * 0.1f, WindowHeight * 0.5f);
         startingTargetPosition = new(WindowWidth * 0.9f, WindowHeight * 0.5f);
         startingTargetOffsetY = WindowHeight * 0.4f;
+
+        random = new(DateTime.Now.Millisecond);
     }
 
     protected override void Initialize()
@@ -88,7 +90,7 @@ public class Application : Game
                 networkSize[j + 1] = networkHiddenLayersCount[j];
             networkSize[^1] = NetworkOutputCount;
                 
-            networks[i] = new(networkSize)
+            networks[i] = new(networkSize, random)
             {
                 Rank = i
             };
@@ -170,16 +172,13 @@ public class Application : Game
         foreach (Arrow arrow in arrows)
         {
             Color color = Color.Blue;
-            if (selectedArrow != null)
-            {
-                if (arrow == selectedArrow)
-                    color = Color.Lime;
-                else
-                    color *= 0.05f;
-            }
+            if (selectedArrow != null && selectedArrow != arrow)
+                color *= 0.05f;
                 
             arrow.Render(spriteBatch, color);
         }
+
+        selectedArrow?.Render(spriteBatch, Color.Lime);
 
         spriteBatch.End();
 
@@ -194,7 +193,7 @@ public class Application : Game
     {
         ImGui.Begin("Simulation");
 
-        ImGuiUtils.SeparatorText("Settings");
+        ImGui.SeparatorText("Settings");
             
         ImGui.DragFloat("Time between resets", ref timeBetweenResets, 0.1f, 1f);
         if (ImGui.Checkbox("Uncap FPS", ref simulationSpeedUncapped))
@@ -211,20 +210,20 @@ public class Application : Game
         if (!simulationSpeedUncapped)
             ImGui.EndDisabled();
         
-        ImGuiUtils.SeparatorText("Readonly data");
+        ImGui.SeparatorText("Readonly data");
 
         double fps = 1.0 / gameTime.ElapsedGameTime.TotalSeconds;
         ImGui.Text($"FPS: {fps}");
         ImGui.Text($"Total time: {gameTime.TotalGameTime}");
         ImGui.Text($"Current iteration: {currentIteration}");
         double simulationSpeed = fps / simulationFrameRate;
-        ImGui.Text($"Running at {fps.ToString("F2", CultureInfo.InvariantCulture)}x speed");
+        ImGui.Text($"Running at {simulationSpeed.ToString("F2", CultureInfo.InvariantCulture)}x speed");
         ImGui.Text($"{(simulationSpeed / timeBetweenResets).ToString("F3", CultureInfo.InvariantCulture)} iterations per second");
         
         ImGui.TextColored(Color.Orange.ToVector4().ToNumerics(), $"Next reset in {timeLeftBeforeReset}s");
         ImGui.Text($"Target position {targetPosition}");
             
-        ImGuiUtils.SeparatorText("Actions");
+        ImGui.SeparatorText("Actions");
 
         ImGui.Checkbox("Running", ref running);
 
@@ -251,15 +250,22 @@ public class Application : Game
 
         if (selectedArrow != null)
         {
-            ImGuiUtils.SeparatorText("Selected arrow data");
+            ImGui.SeparatorText("Selected arrow data");
                 
             ImGui.Text($"Position {selectedArrow.Position}");
-            ImGui.Text($"Angle {selectedArrow.Angle}rad = {MathHelper.ToDegrees(selectedArrow.Angle)}deg");
+            ImGui.Text($"Angle {MathHelper.ToDegrees(selectedArrow.Angle)}deg");
             Vector2 direction = new(MathF.Cos(selectedArrow.Angle), -MathF.Sin(selectedArrow.Angle));
             ImGuiUtils.DirectionVector("Direction", ref direction, selectedArrow.TargetDirection);
-                    
-            ImGui.Text($"Current rank {selectedArrow.Rank}");
-            ImGui.Text($"Last rank {selectedArrow.LastRank}");
+
+            if (ImGui.Button("+"))
+                selectedArrow = arrows[(selectedArrow.Rank - 1 + arrows.Length) % arrows.Length];
+            ImGui.SameLine();
+            if (ImGui.Button("-"))
+                selectedArrow = arrows[(selectedArrow.Rank + 1) % arrows.Length];
+            ImGui.SameLine();
+            ImGui.Text($"Current rank {selectedArrow.Rank + 1}");
+            ImGui.Text($"Last rank {selectedArrow.LastRank + 1}");
+            ImGui.Text($"Fitness {selectedArrow.NeuralNetwork.Fitness}");
 
             ImGui.Checkbox("Show neural network", ref showNeuralNetwork);
             
@@ -284,12 +290,9 @@ public class Application : Game
         const int NonMutatedArrowCount = ArrowCount - MutatedArrowCount;
         for (int i = 0; i < MutatedArrowCount; i++)
         {
-            NeuralNetwork goodNetwork = networks[i];
+            ref NeuralNetwork badNetwork = ref networks[NonMutatedArrowCount + i];
             
-            networks[NonMutatedArrowCount + i] = new(goodNetwork);
-            
-            NeuralNetwork badNetwork = networks[NonMutatedArrowCount + i];
-            
+            badNetwork = new(networks[i], badNetwork);
             badNetwork.Mutate();
         }
 
@@ -303,9 +306,10 @@ public class Application : Game
 
         for (int i = 0; i < ArrowCount; i++)
         {
-            arrows[i] = new(startingArrowPosition, targetPosition, networks[i], arrows[i].Rank);
+            ref Arrow arrow = ref arrows[i];
+            
+            arrow = new(startingArrowPosition, targetPosition, networks[i], arrow.Rank);
 
-            Arrow arrow = arrows[i];
             if (arrow.LastRank == selectedArrowIndex)
                 selectedArrow = arrow;
         }
@@ -319,7 +323,7 @@ public class Application : Game
     {
         timeLeftBeforeReset = timeBetweenResets;
 
-        targetPosition = startingTargetPosition + Vector2.UnitY * startingTargetOffsetY;
+        targetPosition = startingTargetPosition + (random.NextSingle() * 2f - 1f) * Vector2.UnitY * startingTargetOffsetY;
 
         currentIteration++;
     }

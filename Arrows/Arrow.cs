@@ -31,8 +31,6 @@ public class Arrow : IComparable<Arrow>
         
         TargetDirection = (targetPosition - Position).NormalizedCopy();
         TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X);
-
-        Angle = MathHelper.Pi;
     }
 
     public void Update(float deltaTime, Vector2 targetPosition)
@@ -55,10 +53,9 @@ public class Arrow : IComparable<Arrow>
         
         const float PositionXFitnessValue = 1f;
         const float PositionYFitnessValue = 1f;
-        const float MaxDistance = 200f;
-        
-        NeuralNetwork.Fitness = PositionXFitnessValue - MathF.Abs(targetPosition.X - Position.X) / MaxDistance * PositionXFitnessValue;
-        NeuralNetwork.Fitness += PositionYFitnessValue - MathF.Abs(targetPosition.Y - Position.Y) / MaxDistance * PositionYFitnessValue;
+
+        NeuralNetwork.Fitness = PositionXFitnessValue - MathF.Abs(targetPosition.X - Position.X) / windowSize.X * PositionXFitnessValue;
+        NeuralNetwork.Fitness += PositionYFitnessValue - MathF.Abs(targetPosition.Y - Position.Y) / windowSize.Y * PositionYFitnessValue;
 
         UpdatePosition(deltaTime);
     }

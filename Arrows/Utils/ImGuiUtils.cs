@@ -236,12 +236,15 @@ public static class ImGuiUtils
                 for (int k = 0; k < previousNeurons?.Length; k++)
                 {
                     Neuron previousNeuron = previousNeurons[k];
-                    float weight = (float) neuron.Weights[k];
+                    Link link = neuron.Links[k];
                     float previousNeuronPositionY = previousNeuronSpacing * k + previousNeuronOffsetY;
                     NVector2 previousNeuronPosition = basePosition + new NVector2(previousLayerPositionX + layerWidth * 0.5f, previousNeuronPositionY + layerWidth * 0.5f);
+
+                    Color maxColor = Color.Red;
+                    if (link.Mutated)
+                        maxColor = Color.Yellow;
+                    Color weightColor = Color.Lerp(new(maxColor, 0f), maxColor, (float) link.Weight);
                     
-                    Color weightColor = Color.Lerp(new(Color.Red, 0f), Color.Red, weight);
-                
                     drawList.AddLine(previousNeuronPosition, neuronPosition, weightColor.PackedValue);
                 }
             }
@@ -271,11 +274,5 @@ public static class ImGuiUtils
                 drawList.AddText(neuronPosition - textSize * 0.5f, Color.White.PackedValue, text);
             }
         }
-    }
-
-    public static void SeparatorText(string text)
-    {
-        ImGui.Separator();
-        ImGui.Text(text);
     }
 }

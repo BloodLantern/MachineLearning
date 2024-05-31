@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace MachineLearning.Models.NeuralNetwork;
 
@@ -7,54 +8,41 @@ public class Neuron
 {
     public double Value;
     
-    public double[] Weights;
-
+    public Link[] Links;
+    
     public Neuron()
     {
     }
 
     public Neuron(double value) => Value = value;
 
-    public void InitWeights(int neuronsInPreviousLayer, Random random)
+    public void InitLinks(IReadOnlyList<Neuron> previousNeurons, Random random)
     {
-        Weights = new double[neuronsInPreviousLayer];
+        Links = new Link[previousNeurons.Count];
         
         // Set the weights randomly between -0.5 and 0.5
-        for (int k = 0; k < neuronsInPreviousLayer; k++)
-            Weights[k] = random.NextDouble() - 0.5;
+        for (int i = 0; i < previousNeurons.Count; i++)
+            Links[i] = new(random.NextDouble() - 0.5, previousNeurons[i], this);
     }
 
-    public void CopyWeights(double[] weights)
+    public void CopyLinks(IReadOnlyList<Link> links)
     {
-        for (int i = 0; i < weights.Length; i++)
-            Weights[i] = weights[i];
+        for (int i = 0; i < links.Count; i++)
+            Links[i].CopyWeight(links[i]);
+    }
+
+    public void MergeLinks(IReadOnlyList<Link> goodLinks, IReadOnlyList<Link> badLinks)
+    {
+        if (goodLinks.Count != badLinks.Count)
+            throw new ArgumentException("Cannot merge weight arrays of different sizes");
+
+        for (int i = 0; i < goodLinks.Count; i++)
+            Links[i].MergeWeights(goodLinks[i], badLinks[i]);
     }
 
     public void Mutate(Random random)
     {
-        for (int i = 0; i < Weights.Length; i++)
-        {
-            double weight = Weights[i];
-
-            double randomNumber = random.NextDouble() * 1000.0;
-
-            switch (randomNumber)
-            {
-                case <= 2.0:
-                    weight *= -1.0;
-                    break;
-                case <= 4.0:
-                    weight = random.NextDouble() - 0.5;
-                    break;
-                case <= 6.0:
-                    weight *= random.NextDouble() + 1.0;
-                    break;
-                case <= 8.0:
-                    weight *= random.NextDouble();
-                    break;
-            }
-
-            Weights[i] = weight;
-        }
+        foreach (Link link in Links)
+            link.Mutate(random);
     }
 }

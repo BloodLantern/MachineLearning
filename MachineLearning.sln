@@ -9,8 +9,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arrows", "Arrows\Arrows.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Monogame.ImGuiNet", "MonoGame.ImGuiNet\MonoGame.ImGuiNet\Monogame.ImGuiNet.csproj", "{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImGui.NET", "ImGui.NET\src\ImGui.NET\ImGui.NET.csproj", "{18E3755D-414A-493D-8AA5-C71C32C73E86}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,10 +27,6 @@ Global
 		{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}.Release|Any CPU.Build.0 = Release|Any CPU
-		{18E3755D-414A-493D-8AA5-C71C32C73E86}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{18E3755D-414A-493D-8AA5-C71C32C73E86}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{18E3755D-414A-493D-8AA5-C71C32C73E86}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{18E3755D-414A-493D-8AA5-C71C32C73E86}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

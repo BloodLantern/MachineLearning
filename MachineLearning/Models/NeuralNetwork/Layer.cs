@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace MachineLearning.Models.NeuralNetwork;
 
@@ -21,26 +22,35 @@ public class Layer
             Neurons[i] = new();
     }
 
-    public void InitWeights(Layer previousLayer, Random random)
+    public void InitLinks(Layer previousLayer, Random random)
     {
         foreach (Neuron neuron in Neurons)
-            neuron.InitWeights(previousLayer.Size, random);
+            neuron.InitLinks(previousLayer.Neurons, random);
     }
 
-    public void CopyWeights(Neuron[] neurons)
+    public void CopyLinks(IReadOnlyList<Neuron> neurons)
     {
-        for (int i = 0; i < neurons.Length; i++)
-            Neurons[i].CopyWeights(neurons[i].Weights);
+        for (int i = 0; i < neurons.Count; i++)
+            Neurons[i].CopyLinks(neurons[i].Links);
     }
 
-    public void FeedForward(Neuron[] previousNeurons)
+    public void MergeLinks(IReadOnlyList<Neuron> goodNeurons, IReadOnlyList<Neuron> badNeurons)
+    {
+        if (goodNeurons.Count != badNeurons.Count)
+            throw new ArgumentException("Cannot merge neuron arrays of different sizes");
+
+        for (int i = 0; i < goodNeurons.Count; i++)
+            Neurons[i].MergeLinks(goodNeurons[i].Links, badNeurons[i].Links);
+    }
+
+    public void FeedForward(IReadOnlyList<Neuron> previousNeurons)
     {
         foreach (Neuron neuron in Neurons)
         {
             double value = 0.25;
 
-            for (int k = 0; k < previousNeurons.Length; k++)
-                value += neuron.Weights[k] * previousNeurons[k].Value;
+            for (int k = 0; k < previousNeurons.Count; k++)
+                value += neuron.Links[k].Weight * previousNeurons[k].Value;
 
             neuron.Value = Math.Tanh(value);
         }

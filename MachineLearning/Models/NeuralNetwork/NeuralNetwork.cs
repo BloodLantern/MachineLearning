@@ -22,7 +22,48 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
 
     public NeuralNetwork() => random = new(DateTime.Now.Millisecond);
 
-    public NeuralNetwork(int[] layers)
+    public NeuralNetwork(int[] layers, Random random)
+    {
+        this.random = random;
+
+        InitLayers(layers);
+        InitNeurons();
+        InitLinks();
+    }
+
+    /// <summary>
+    /// Constructs a new NeuralNetwork which is a deep copy of the given network.
+    /// </summary>
+    /// <param name="copy">The network to create a deep copy of.</param>
+    public NeuralNetwork(NeuralNetwork copy)
+    {
+        random = copy.random;
+
+        InitLayers(GetLayerSizeArray(copy.Layers));
+        InitNeurons();
+        InitLinks();
+        CopyLinks(copy.Layers);
+    }
+
+    /// <summary>
+    /// Constructs a new NeuralNetwork which is the result of a merge between a good and a bad network.
+    /// </summary>
+    /// <param name="goodNetwork">A good network to merge with the bad one.</param>
+    /// <param name="badNetwork">A bad network to merge with the good one.</param>
+    public NeuralNetwork(NeuralNetwork goodNetwork, NeuralNetwork badNetwork)
+    {
+        if (goodNetwork.Layers.Length != badNetwork.Layers.Length)
+            throw new ArgumentException("Cannot merge networks with different amounts of layers");
+        
+        random = badNetwork.random;
+
+        InitLayers(GetLayerSizeArray(goodNetwork.Layers));
+        InitNeurons();
+        InitLinks();
+        MergeLinks(goodNetwork.Layers, badNetwork.Layers);
+    }
+
+    private void InitLayers(int[] layers)
     {
         if (layers.Length < 3)
             throw new ArgumentException("A NeuralNetwork must have at least 1 input layer, 1 hidden layer, and 1 output layer");
@@ -36,25 +77,6 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             
             Layers[i] = new(layers[i]);
         }
-
-        random = new(DateTime.Now.Millisecond);
-
-        InitNeurons();
-        InitWeights();
-    }
-
-    public NeuralNetwork(NeuralNetwork copy)
-    {
-        Layers = new Layer[copy.Layers.Length];
-
-        for (int i = 0; i < copy.Layers.Length; i++)
-            Layers[i] = copy.Layers[i];
-
-        random = new(DateTime.Now.Millisecond);
-
-        InitNeurons();
-        InitWeights();
-        CopyWeights(copy.Layers);
     }
 
     private void InitNeurons()
@@ -63,24 +85,30 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             layer.InitNeurons();
     }
 
-    private void InitWeights()
+    private void InitLinks()
     {
         for (int i = 1; i < Layers.Length; i++)
-            Layers[i].InitWeights(Layers[i - 1], random);
+            Layers[i].InitLinks(Layers[i - 1], random);
     }
 
-    private void CopyWeights(IReadOnlyList<Layer> layers)
+    private void CopyLinks(IReadOnlyList<Layer> layers)
     {
         for (int i = 1; i < layers.Count; i++)
-            Layers[i].CopyWeights(layers[i].Neurons);
+            Layers[i].CopyLinks(layers[i].Neurons);
+    }
+    
+    private void MergeLinks(IReadOnlyList<Layer> goodLayers, IReadOnlyList<Layer> badLayers)
+    {
+        for (int i = 1; i < goodLayers.Count; i++)
+            Layers[i].MergeLinks(goodLayers[i].Neurons, badLayers[i].Neurons);
     }
 
-    public double[] FeedForward(double[] inputs)
+    public double[] FeedForward(IReadOnlyList<double> inputs)
     {
-        if (inputs.Length != Layers[0].Size)
+        if (inputs.Count != Layers[0].Size)
             throw new ArgumentException("Inputs array has the wrong size");
         
-        for (int i = 0; i < inputs.Length; i++)
+        for (int i = 0; i < inputs.Count; i++)
             Layers[0].Neurons[i].Value = inputs[i];
 
         for (int i = 1; i < Layers.Length; i++)
@@ -104,9 +132,19 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     public void ResetNeurons()
     {
         InitNeurons();
-        InitWeights();
+        InitLinks();
         
         Mutate();
+    }
+
+    private static int[] GetLayerSizeArray(Layer[] layers)
+    {
+        int[] result = new int[layers.Length];
+
+        for (int i = 0; i < layers.Length; i++)
+            result[i] = layers[i].Size;
+
+        return result;
     }
 
     public void Save(string path) => File.WriteAllText(path, this.GetXml(true));
