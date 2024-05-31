@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Xml.Serialization;
 
 namespace MachineLearning.Models.NeuralNetwork;
 
 [Serializable]
 public class Neuron
 {
+    [XmlIgnore]
     public double Value;
     
     public Link[] Links;

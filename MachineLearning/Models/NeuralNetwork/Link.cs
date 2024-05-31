@@ -1,15 +1,20 @@
 ﻿using System;
+using System.Xml.Serialization;
 
 namespace MachineLearning.Models.NeuralNetwork;
 
 [Serializable]
 public class Link
 {
+    [XmlAttribute]
     public double Weight;
     
-    public Neuron Origin { get; private set; }
-    public Neuron Destination { get; private set; }
+    [XmlIgnore]
+    public Neuron Origin;
+    [XmlIgnore]
+    public Neuron Destination;
 
+    [XmlIgnore]
     public bool Mutated;
 
     public Link()

@@ -235,7 +235,6 @@ public static class ImGuiUtils
 
                 for (int k = 0; k < previousNeurons?.Length; k++)
                 {
-                    Neuron previousNeuron = previousNeurons[k];
                     Link link = neuron.Links[k];
                     float previousNeuronPositionY = previousNeuronSpacing * k + previousNeuronOffsetY;
                     NVector2 previousNeuronPosition = basePosition + new NVector2(previousLayerPositionX + layerWidth * 0.5f, previousNeuronPositionY + layerWidth * 0.5f);

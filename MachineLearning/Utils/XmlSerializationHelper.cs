@@ -7,7 +7,7 @@ namespace MachineLearning.Utils;
 
 public static class XmlSerializationHelper
 {
-    public static T LoadFromXml<T>(this string xmlString, XmlSerializer serial = null)
+    public static T LoadFromXml<T>(string xmlString, XmlSerializer serial = null)
     {
         serial ??= new(typeof(T));
         T returnValue = default;
@@ -18,9 +18,9 @@ public static class XmlSerializationHelper
         return returnValue;
     }
 
-    public static string GetXml<T>(this T obj, bool omitStandardNamespaces) => obj.GetXml(null, omitStandardNamespaces);
+    public static string GetXml(object obj, bool omitStandardNamespaces) => GetXml(obj, null, omitStandardNamespaces);
 
-    public static string GetXml<T>(this T obj, XmlSerializer serializer = null, bool omitStandardNamespaces = false)
+    public static string GetXml(object obj, XmlSerializer serializer = null, bool omitStandardNamespaces = false)
     {
         XmlSerializerNamespaces ns = null;
         if (omitStandardNamespaces)

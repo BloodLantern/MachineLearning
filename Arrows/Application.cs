@@ -30,7 +30,7 @@ public class Application : Game
     private readonly NeuralNetwork[] networks = new NeuralNetwork[ArrowCount];
         
     private const int NetworkInputCount = 5;
-    private readonly int[] networkHiddenLayersCount = [20, 20, 20, 20];
+    private readonly int[] networkHiddenLayersCount = [10, 10, 10];
     private const int NetworkOutputCount = 1;
 
     private const string SavePath = "network_save.xml";
@@ -67,10 +67,11 @@ public class Application : Game
         WindowHeight = 900;
 
         IsFixedTimeStep = false;
+        InactiveSleepTime = TimeSpan.Zero;
         graphics.SynchronizeWithVerticalRetrace = true;
 
-        startingArrowPosition = new(WindowWidth * 0.1f, WindowHeight * 0.5f);
-        startingTargetPosition = new(WindowWidth * 0.9f, WindowHeight * 0.5f);
+        startingArrowPosition = new(WindowWidth * 0.3f, WindowHeight * 0.5f);
+        startingTargetPosition = new(WindowWidth * 0.6f, WindowHeight * 0.5f);
         startingTargetOffsetY = WindowHeight * 0.4f;
 
         random = new(DateTime.Now.Millisecond);
@@ -94,7 +95,10 @@ public class Application : Game
             {
                 Rank = i
             };
-            arrows[i] = new(startingArrowPosition, targetPosition, networks[i], -1);
+            arrows[i] = new(startingArrowPosition, networks[i], -1)
+            {
+                Angle = random.NextSingle() * MathHelper.TwoPi
+            };
         }
 
         base.Initialize();
@@ -140,7 +144,7 @@ public class Application : Game
 
             if (timeLeftBeforeReset <= 0f)
             {
-                ResetSimulation();
+                ResetSimulation(true);
             }
             else
             {
@@ -228,10 +232,16 @@ public class Application : Game
         ImGui.Checkbox("Running", ref running);
 
         if (ImGui.Button("Next generation"))
-            ResetSimulation();
+            ResetSimulation(true);
 
+        if (running)
+            ImGui.BeginDisabled();
+        
         if (ImGui.Button("Next frame"))
             runningForOneFrame = true;
+
+        if (running)
+            ImGui.EndDisabled();
 
         if (ImGui.Button("Save best"))
             SaveBestNetwork();
@@ -280,7 +290,35 @@ public class Application : Game
         ImGui.End();
     }
 
-    private void ResetSimulation()
+    private void ResetSimulation(bool evolve)
+    {
+        if (evolve)
+            EvolveSimulation();
+
+        for (int i = 0; i < ArrowCount; i++)
+        {
+            networks[i].Rank = i;
+            networks[i].Fitness = 0.0;
+        }
+
+        int selectedArrowIndex = selectedArrow?.Rank ?? -1;
+
+        for (int i = 0; i < ArrowCount; i++)
+        {
+            ref Arrow arrow = ref arrows[i];
+            
+            arrow = new(startingArrowPosition, networks[i], arrow.Rank);
+
+            if (arrow.LastRank == selectedArrowIndex)
+                selectedArrow = arrow;
+        }
+        
+        Array.Sort(arrows);
+
+        InitializeSimulation();
+    }
+
+    private void EvolveSimulation()
     {
         Array.Sort(networks);
 
@@ -295,28 +333,6 @@ public class Application : Game
             badNetwork = new(networks[i], badNetwork);
             badNetwork.Mutate();
         }
-
-        for (int i = 0; i < ArrowCount; i++)
-        {
-            networks[i].Rank = i;
-            networks[i].Fitness = 0.0;
-        }
-
-        int selectedArrowIndex = selectedArrow?.Rank ?? -1;
-
-        for (int i = 0; i < ArrowCount; i++)
-        {
-            ref Arrow arrow = ref arrows[i];
-            
-            arrow = new(startingArrowPosition, targetPosition, networks[i], arrow.Rank);
-
-            if (arrow.LastRank == selectedArrowIndex)
-                selectedArrow = arrow;
-        }
-        
-        Array.Sort(arrows);
-
-        InitializeSimulation();
     }
 
     private void InitializeSimulation()
@@ -332,9 +348,11 @@ public class Application : Game
 
     private void LoadSavedNetwork()
     {
-        for (int i = 0; i < arrows.Length; i++)
-            arrows[i] = new(startingArrowPosition, targetPosition, NeuralNetwork.Load(SavePath), -1);
+        NeuralNetwork saved = NeuralNetwork.Load(SavePath);
         
-        ResetSimulation();
+        for (int i = 0; i < arrows.Length; i++)
+            arrows[i] = new(startingArrowPosition, new(saved), -1);
+        
+        ResetSimulation(false);
     }
 }

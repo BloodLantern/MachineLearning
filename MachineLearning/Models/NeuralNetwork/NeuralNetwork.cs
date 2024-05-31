@@ -9,7 +9,26 @@ namespace MachineLearning.Models.NeuralNetwork;
 [Serializable]
 public class NeuralNetwork : IComparable<NeuralNetwork>
 {
+    [XmlIgnore]
     public Layer[] Layers;
+
+    [XmlElement("Layers", Order = 1)]
+    public Layer[] SerializedLayers
+    {
+        get => Layers[1..];
+        set
+        {
+            Layers = new Layer[LayerSizes.Length];
+            
+            Layers[0] = new(LayerSizes[0]);
+            
+            for (int i = 0; i < value.Length; i++)
+                Layers[i + 1] = value[i];
+        }
+    }
+
+    [XmlElement("LayerSizes", Order = 0)]
+    public int[] LayerSizes;
     
     [XmlIgnore]
     public double Fitness = 0;
@@ -39,7 +58,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     {
         random = copy.random;
 
-        InitLayers(GetLayerSizeArray(copy.Layers));
+        InitLayers(copy.LayerSizes);
         InitNeurons();
         InitLinks();
         CopyLinks(copy.Layers);
@@ -57,7 +76,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         
         random = badNetwork.random;
 
-        InitLayers(GetLayerSizeArray(goodNetwork.Layers));
+        InitLayers(goodNetwork.LayerSizes);
         InitNeurons();
         InitLinks();
         MergeLinks(goodNetwork.Layers, badNetwork.Layers);
@@ -68,6 +87,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         if (layers.Length < 3)
             throw new ArgumentException("A NeuralNetwork must have at least 1 input layer, 1 hidden layer, and 1 output layer");
         
+        LayerSizes = layers;
         Layers = new Layer[layers.Length];
 
         for (int i = 0; i < layers.Length; i++)
@@ -137,19 +157,9 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         Mutate();
     }
 
-    private static int[] GetLayerSizeArray(Layer[] layers)
-    {
-        int[] result = new int[layers.Length];
+    public void Save(string path) => File.WriteAllText(path, XmlSerializationHelper.GetXml(this, true));
 
-        for (int i = 0; i < layers.Length; i++)
-            result[i] = layers[i].Size;
-
-        return result;
-    }
-
-    public void Save(string path) => File.WriteAllText(path, this.GetXml(true));
-
-    public static NeuralNetwork Load(string path) => File.ReadAllText(path).LoadFromXml<NeuralNetwork>();
+    public static NeuralNetwork Load(string path) => XmlSerializationHelper.LoadFromXml<NeuralNetwork>(File.ReadAllText(path));
 
     public int CompareTo(NeuralNetwork other)
     {
