@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 
-namespace Arrows;
+namespace Arrows.Utils;
 
 public static class Utils
 {

@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Globalization;
 using ImGuiNET;
+using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using NVector2 = System.Numerics.Vector2;
 
-namespace Arrows;
+namespace Arrows.Utils;
 
 public static class ImGuiUtils
 {
@@ -189,5 +191,91 @@ public static class ImGuiUtils
         ImGui.PopClipRect();
         
         value.Y *= -1; // In 2D, the Y axis goes downwards
+    }
+
+    public static void DisplayNeuralNetwork(NeuralNetwork network) => DisplayNeuralNetwork(network, new(600f, 600f));
+
+    public static void DisplayNeuralNetwork(NeuralNetwork network, Vector2 givenSize)
+    {
+        NVector2 size = givenSize.ToNumerics();
+        NVector2 padding = ImGui.GetStyle().FramePadding;
+        
+        int layers = network.Layers.Length;
+        float layerSpacing = (size.X + padding.X * (layers - 1)) / layers;
+        float layerWidth = MathF.Min(layerSpacing - padding.X, 30f);
+
+        ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+        NVector2 basePosition = ImGui.GetWindowPos() + new NVector2(25f, 35f);
+
+        for (int i = 0; i < layers; i++)
+        {
+            Layer layer = network.Layers[i];
+            Layer previousLayer = null;
+            if (i > 0)
+                previousLayer = network.Layers[i - 1];
+
+            float layerPositionX = layerSpacing * i - padding.X;
+            float previousLayerPositionX = layerSpacing * (i - 1) - padding.X;
+
+            Neuron[] neurons = layer.Neurons;
+            Neuron[] previousNeurons = previousLayer?.Neurons;
+
+            float neuronSpacing = (size.Y + padding.Y * (neurons.Length - 1)) / neurons.Length;
+            float previousNeuronSpacing = (size.Y + padding.Y * (previousNeurons?.Length - 1)) / previousNeurons?.Length ?? 0f;
+            
+            float previousNeuronOffsetY = -padding.Y + size.Y / previousNeurons?.Length * 0.5f ?? 0f;
+
+            for (int j = 0; j < neurons.Length; j++)
+            {
+                Neuron neuron = neurons[j];
+
+                float neuronOffsetY = -padding.Y + size.Y / neurons.Length * 0.5f;
+                float neuronPositionY = neuronSpacing * j + neuronOffsetY;
+                NVector2 neuronPosition = basePosition + new NVector2(layerPositionX + layerWidth * 0.5f, neuronPositionY + layerWidth * 0.5f);
+
+                for (int k = 0; k < previousNeurons?.Length; k++)
+                {
+                    Neuron previousNeuron = previousNeurons[k];
+                    float weight = (float) neuron.Weights[k];
+                    float previousNeuronPositionY = previousNeuronSpacing * k + previousNeuronOffsetY;
+                    NVector2 previousNeuronPosition = basePosition + new NVector2(previousLayerPositionX + layerWidth * 0.5f, previousNeuronPositionY + layerWidth * 0.5f);
+                    
+                    Color weightColor = Color.Lerp(new(Color.Red, 0f), Color.Red, weight);
+                
+                    drawList.AddLine(previousNeuronPosition, neuronPosition, weightColor.PackedValue);
+                }
+            }
+        }
+
+        for (int i = 0; i < layers; i++)
+        {
+            Layer layer = network.Layers[i];
+
+            float layerPositionX = layerSpacing * i - padding.X;
+
+            Neuron[] neurons = layer.Neurons;
+
+            float neuronSpacing = (size.Y + padding.Y * (neurons.Length - 1)) / neurons.Length;
+
+            for (int j = 0; j < neurons.Length; j++)
+            {
+                Neuron neuron = neurons[j];
+                
+                float neuronOffsetY = -padding.Y + size.Y / neurons.Length * 0.5f;
+                float neuronPositionY = neuronSpacing * j + neuronOffsetY;
+                NVector2 neuronPosition = basePosition + new NVector2(layerPositionX + layerWidth * 0.5f, neuronPositionY + layerWidth * 0.5f);
+                
+                drawList.AddCircleFilled(neuronPosition, layerWidth * 0.5f, Color.Green.PackedValue);
+                string text = neuron.Value.ToString("F2", CultureInfo.InvariantCulture);
+                NVector2 textSize = ImGui.CalcTextSize(text);
+                drawList.AddText(neuronPosition - textSize * 0.5f, Color.White.PackedValue, text);
+            }
+        }
+    }
+
+    public static void SeparatorText(string text)
+    {
+        ImGui.Separator();
+        ImGui.Text(text);
     }
 }

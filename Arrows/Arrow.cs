@@ -31,47 +31,36 @@ public class Arrow : IComparable<Arrow>
         
         TargetDirection = (targetPosition - Position).NormalizedCopy();
         TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X);
-            
-        Angle = (float) NeuralNetwork.FeedForward(
-            [
-                Angle,
-                Position.X,
-                Position.Y,
-                targetPosition.X,
-                targetPosition.Y
-            ]
-        )[0];
+
+        Angle = MathHelper.Pi;
     }
 
-    public void Update(GameTime gameTime, Vector2 targetPosition)
+    public void Update(float deltaTime, Vector2 targetPosition)
     {
         TargetDirection = (targetPosition - Position).NormalizedCopy();
         TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X);
         
+        Vector2 windowSize = Application.Instance.WindowSize.ToVector2();
         double[] result = NeuralNetwork.FeedForward(
             [
-                Angle,
-                Position.X,
-                Position.Y,
-                targetPosition.X,
-                targetPosition.Y
+                Angle / MathHelper.TwoPi,
+                Position.X / windowSize.X,
+                Position.Y / windowSize.Y,
+                targetPosition.X / windowSize.X,
+                targetPosition.Y / windowSize.Y
             ]
         );
-        //Angle += Math.Clamp((float) result[0] - Angle, -MaxAngleTilting, MaxAngleTilting);
-        Angle = (float) result[0];
+        Angle += (float) result[0] * MaxAngleTilting;
         Angle %= MathHelper.TwoPi;
-
-        const float AngleFitnessValue = 10f;
+        
         const float PositionXFitnessValue = 1f;
         const float PositionYFitnessValue = 1f;
-        float fitnessDiff = AngleFitnessValue - MathF.Abs(TargetAngle - Angle) / MathHelper.PiOver4 * AngleFitnessValue;
         const float MaxDistance = 200f;
-        fitnessDiff += PositionXFitnessValue - MathF.Abs(targetPosition.X - Position.X) / MaxDistance * PositionXFitnessValue;
-        fitnessDiff += PositionYFitnessValue - MathF.Abs(targetPosition.Y - Position.Y) / MaxDistance * PositionYFitnessValue;
         
-        NeuralNetwork.Fitness += fitnessDiff;
+        NeuralNetwork.Fitness = PositionXFitnessValue - MathF.Abs(targetPosition.X - Position.X) / MaxDistance * PositionXFitnessValue;
+        NeuralNetwork.Fitness += PositionYFitnessValue - MathF.Abs(targetPosition.Y - Position.Y) / MaxDistance * PositionYFitnessValue;
 
-        UpdatePosition(gameTime.GetElapsedSeconds());
+        UpdatePosition(deltaTime);
     }
 
     private void UpdatePosition(float deltaTime)

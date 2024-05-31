@@ -19,9 +19,9 @@ public class Neuron
     {
         Weights = new double[neuronsInPreviousLayer];
         
-        // Set the weights randomly between -1 and 1
+        // Set the weights randomly between -0.5 and 0.5
         for (int k = 0; k < neuronsInPreviousLayer; k++)
-            Weights[k] = random.NextSingle() - 0.5;
+            Weights[k] = random.NextDouble() - 0.5;
     }
 
     public void CopyWeights(double[] weights)

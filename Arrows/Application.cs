@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Globalization;
+using Arrows.Utils;
 using ImGuiNET;
 using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
@@ -33,6 +35,10 @@ public class Application : Game
 
     private const string SavePath = "network_save.xml";
 
+    private readonly Vector2 startingArrowPosition;
+    private readonly Vector2 startingTargetPosition;
+    private readonly float startingTargetOffsetY;
+
     private bool running;
     private bool runningForOneFrame;
         
@@ -44,6 +50,10 @@ public class Application : Game
     
     private bool bestArrowSelected;
     private Arrow selectedArrow;
+    private bool showNeuralNetwork;
+
+    private float simulationFrameRate = 60f;
+    private bool simulationSpeedUncapped;
 
     public Application()
     {
@@ -52,8 +62,16 @@ public class Application : Game
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
 
+        Window.AllowUserResizing = true;
         WindowWidth = 1280;
         WindowHeight = 720;
+
+        IsFixedTimeStep = false;
+        graphics.SynchronizeWithVerticalRetrace = true;
+
+        startingArrowPosition = new(WindowWidth * 0.1f, WindowHeight * 0.5f);
+        startingTargetPosition = new(WindowWidth * 0.9f, WindowHeight * 0.5f);
+        startingTargetOffsetY = WindowHeight * 0.4f;
     }
 
     protected override void Initialize()
@@ -74,7 +92,7 @@ public class Application : Game
             {
                 Rank = i
             };
-            arrows[i] = new(GetRandomPosition(), targetPosition, networks[i], -1);
+            arrows[i] = new(startingArrowPosition, targetPosition, networks[i], -1);
         }
 
         base.Initialize();
@@ -94,7 +112,9 @@ public class Application : Game
         MouseStateExtended mouse = MouseExtended.GetState();
         Vector2 mousePosition = mouse.Position.ToVector2();
 
-        if (mouse.WasButtonJustUp(MouseButton.Left) && !ImGui.GetIO().WantCaptureMouse)
+        float deltaTime = simulationSpeedUncapped ? 1f / simulationFrameRate : gameTime.GetElapsedSeconds();
+
+        if (mouse.WasButtonJustUp(MouseButton.Left) && !ImGui.GetIO().WantCaptureMouse && new Rectangle(Point.Zero, WindowSize).Contains(mouse.Position))
         {
             foreach (Arrow arrow in arrows)
             {
@@ -114,7 +134,7 @@ public class Application : Game
         if (running || runningForOneFrame)
         {
             foreach (Arrow arrow in arrows)
-                arrow.Update(gameTime, targetPosition);
+                arrow.Update(deltaTime, targetPosition);
 
             if (timeLeftBeforeReset <= 0f)
             {
@@ -130,7 +150,7 @@ public class Application : Game
                 Array.Sort(arrows);
             }
 
-            timeLeftBeforeReset -= gameTime.GetElapsedSeconds();
+            timeLeftBeforeReset -= deltaTime;
 
             if (runningForOneFrame)
                 runningForOneFrame = false;
@@ -173,28 +193,45 @@ public class Application : Game
     protected virtual void DrawImGui(GameTime gameTime)
     {
         ImGui.Begin("Simulation");
-            
-        ImGui.SeparatorText("Settings");
+
+        ImGuiUtils.SeparatorText("Settings");
             
         ImGui.DragFloat("Time between resets", ref timeBetweenResets, 0.1f, 1f);
+        if (ImGui.Checkbox("Uncap FPS", ref simulationSpeedUncapped))
+        {
+            graphics.SynchronizeWithVerticalRetrace = !simulationSpeedUncapped;
+            graphics.ApplyChanges();
+        }
+
+        if (!simulationSpeedUncapped)
+            ImGui.BeginDisabled();
         
-        ImGui.SeparatorText("Readonly data");
+        ImGui.SliderFloat("Simulation FPS", ref simulationFrameRate, 5f, 300f);
         
-        ImGui.Text($"FPS: {1f / gameTime.GetElapsedSeconds()}");
+        if (!simulationSpeedUncapped)
+            ImGui.EndDisabled();
+        
+        ImGuiUtils.SeparatorText("Readonly data");
+
+        double fps = 1.0 / gameTime.ElapsedGameTime.TotalSeconds;
+        ImGui.Text($"FPS: {fps}");
         ImGui.Text($"Total time: {gameTime.TotalGameTime}");
         ImGui.Text($"Current iteration: {currentIteration}");
+        double simulationSpeed = fps / simulationFrameRate;
+        ImGui.Text($"Running at {fps.ToString("F2", CultureInfo.InvariantCulture)}x speed");
+        ImGui.Text($"{(simulationSpeed / timeBetweenResets).ToString("F3", CultureInfo.InvariantCulture)} iterations per second");
         
         ImGui.TextColored(Color.Orange.ToVector4().ToNumerics(), $"Next reset in {timeLeftBeforeReset}s");
         ImGui.Text($"Target position {targetPosition}");
             
-        ImGui.SeparatorText("Actions");
+        ImGuiUtils.SeparatorText("Actions");
 
         ImGui.Checkbox("Running", ref running);
 
-        if (ImGui.Button("Advance one generation"))
+        if (ImGui.Button("Next generation"))
             ResetSimulation();
 
-        if (ImGui.Button("Advance one frame"))
+        if (ImGui.Button("Next frame"))
             runningForOneFrame = true;
 
         if (ImGui.Button("Save best"))
@@ -214,9 +251,7 @@ public class Application : Game
 
         if (selectedArrow != null)
         {
-            NeuralNetwork network = selectedArrow.NeuralNetwork;
-                
-            ImGui.SeparatorText("Selected arrow data");
+            ImGuiUtils.SeparatorText("Selected arrow data");
                 
             ImGui.Text($"Position {selectedArrow.Position}");
             ImGui.Text($"Angle {selectedArrow.Angle}rad = {MathHelper.ToDegrees(selectedArrow.Angle)}deg");
@@ -225,7 +260,15 @@ public class Application : Game
                     
             ImGui.Text($"Current rank {selectedArrow.Rank}");
             ImGui.Text($"Last rank {selectedArrow.LastRank}");
-            ImGui.Text($"Fitness {network.Fitness}");
+
+            ImGui.Checkbox("Show neural network", ref showNeuralNetwork);
+            
+            if (showNeuralNetwork)
+            {
+                ImGui.Begin("Neural Network");
+                ImGuiUtils.DisplayNeuralNetwork(selectedArrow.NeuralNetwork);
+                ImGui.End();
+            }
         }
                 
         ImGui.End();
@@ -259,10 +302,13 @@ public class Application : Game
         int selectedArrowIndex = selectedArrow?.Rank ?? -1;
 
         for (int i = 0; i < ArrowCount; i++)
-            arrows[i] = new(GetRandomPosition(), targetPosition, networks[i], arrows[i].Rank);
+        {
+            arrows[i] = new(startingArrowPosition, targetPosition, networks[i], arrows[i].Rank);
 
-        if (selectedArrowIndex != -1)
-            selectedArrow = arrows[selectedArrowIndex];
+            Arrow arrow = arrows[i];
+            if (arrow.LastRank == selectedArrowIndex)
+                selectedArrow = arrow;
+        }
         
         Array.Sort(arrows);
 
@@ -273,8 +319,7 @@ public class Application : Game
     {
         timeLeftBeforeReset = timeBetweenResets;
 
-        Vector2 halfWindowSize = WindowSize.ToVector2() * 0.5f;
-        targetPosition = random.NextVector2() * halfWindowSize + halfWindowSize * 0.5f;
+        targetPosition = startingTargetPosition + Vector2.UnitY * startingTargetOffsetY;
 
         currentIteration++;
     }
@@ -284,10 +329,8 @@ public class Application : Game
     private void LoadSavedNetwork()
     {
         for (int i = 0; i < arrows.Length; i++)
-            arrows[i] = new(GetRandomPosition(), targetPosition, NeuralNetwork.Load(SavePath), -1);
+            arrows[i] = new(startingArrowPosition, targetPosition, NeuralNetwork.Load(SavePath), -1);
         
         ResetSimulation();
     }
-
-    private Vector2 GetRandomPosition() => new(random.NextSingle() * WindowWidth, random.NextSingle() * WindowHeight);
 }
