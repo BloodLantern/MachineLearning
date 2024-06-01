@@ -46,14 +46,7 @@ public class Layer
     public void FeedForward(IReadOnlyList<Neuron> previousNeurons)
     {
         foreach (Neuron neuron in Neurons)
-        {
-            double value = 0.25;
-
-            for (int k = 0; k < previousNeurons.Count; k++)
-                value += neuron.Links[k].Weight * previousNeurons[k].Value;
-
-            neuron.Value = Math.Tanh(value);
-        }
+            neuron.FeedForward();
     }
 
     public void Mutate(Random random)

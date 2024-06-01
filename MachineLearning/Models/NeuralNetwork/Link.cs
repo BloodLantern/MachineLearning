@@ -30,7 +30,7 @@ public class Link
 
     public void CopyWeight(Link other) => Weight = other.Weight;
 
-    public void MergeWeights(Link good, Link bad) => Weight = good.Weight * 0.6 + bad.Weight * 0.4;
+    public void MergeWeights(Link good, Link bad) => Weight = good.Weight * 0.8 + bad.Weight * 0.2;
 
     public void Mutate(Random random)
     {

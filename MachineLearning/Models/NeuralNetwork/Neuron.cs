@@ -42,6 +42,16 @@ public class Neuron
             Links[i].MergeWeights(goodLinks[i], badLinks[i]);
     }
 
+    public void FeedForward()
+    {
+        double value = 0.25;
+
+        foreach (Link link in Links)
+            value += link.Weight * link.Origin.Value;
+
+        Value = Math.Tanh(value);
+    }
+
     public void Mutate(Random random)
     {
         foreach (Link link in Links)

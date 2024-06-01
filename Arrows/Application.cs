@@ -30,7 +30,7 @@ public class Application : Game
     private readonly NeuralNetwork[] networks = new NeuralNetwork[ArrowCount];
         
     private const int NetworkInputCount = 5;
-    private readonly int[] networkHiddenLayersCount = [10, 10, 10];
+    private readonly int[] networkHiddenLayersCount = [5];
     private const int NetworkOutputCount = 1;
 
     private const string SavePath = "network_save.xml";
@@ -303,11 +303,13 @@ public class Application : Game
 
         int selectedArrowIndex = selectedArrow?.Rank ?? -1;
 
+        Vector2 randomPosition = new(random.NextSingle() * 0.5f * WindowWidth + WindowWidth * 0.25f,
+            random.NextSingle() * 0.5f * WindowHeight + WindowHeight * 0.25f);
         for (int i = 0; i < ArrowCount; i++)
         {
             ref Arrow arrow = ref arrows[i];
             
-            arrow = new(startingArrowPosition, networks[i], arrow.Rank);
+            arrow = new(randomPosition, networks[i], arrow.Rank);
 
             if (arrow.LastRank == selectedArrowIndex)
                 selectedArrow = arrow;
@@ -333,13 +335,20 @@ public class Application : Game
             badNetwork = new(networks[i], badNetwork);
             badNetwork.Mutate();
         }
+
+        // Mutate again every network that has a negative fitness
+        foreach (NeuralNetwork network in networks)
+        {
+            if (network.Fitness < 0.0)
+                network.Mutate();
+        }
     }
 
     private void InitializeSimulation()
     {
         timeLeftBeforeReset = timeBetweenResets;
 
-        targetPosition = startingTargetPosition + (random.NextSingle() * 2f - 1f) * Vector2.UnitY * startingTargetOffsetY;
+        targetPosition = new(random.NextSingle() * 0.5f * WindowWidth + WindowWidth * 0.25f, random.NextSingle() * 0.5f * WindowHeight + WindowHeight * 0.25f);
 
         currentIteration++;
     }
@@ -350,8 +359,8 @@ public class Application : Game
     {
         NeuralNetwork saved = NeuralNetwork.Load(SavePath);
         
-        for (int i = 0; i < arrows.Length; i++)
-            arrows[i] = new(startingArrowPosition, new(saved), -1);
+        for (int i = 0; i < ArrowCount; i++)
+            networks[i] = new(saved);
         
         ResetSimulation(false);
     }

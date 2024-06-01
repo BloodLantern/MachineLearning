@@ -239,7 +239,7 @@ public static class ImGuiUtils
                     float previousNeuronPositionY = previousNeuronSpacing * k + previousNeuronOffsetY;
                     NVector2 previousNeuronPosition = basePosition + new NVector2(previousLayerPositionX + layerWidth * 0.5f, previousNeuronPositionY + layerWidth * 0.5f);
 
-                    Color maxColor = Color.Red;
+                    Color maxColor = Color.Green;
                     if (link.Mutated)
                         maxColor = Color.Yellow;
                     Color weightColor = Color.Lerp(new(maxColor, 0f), maxColor, (float) link.Weight);
