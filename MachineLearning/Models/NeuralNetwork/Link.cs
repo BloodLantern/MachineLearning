@@ -8,6 +8,9 @@ public class Link
 {
     [XmlAttribute]
     public double Weight;
+
+    [XmlIgnore]
+    internal double WeightGradient;
     
     [XmlIgnore]
     public Neuron Origin;
@@ -32,26 +35,9 @@ public class Link
 
     public void MergeWeights(Link good, Link bad) => Weight = good.Weight * 0.8 + bad.Weight * 0.2;
 
-    public void Mutate(Random random)
-    {
-        double oldWeight = Weight;
-        
-        switch (random.NextDouble() * 1000.0)
-        {
-            case <= 2.0:
-                Weight *= -1.0;
-                break;
-            case <= 4.0:
-                Weight = random.NextDouble() - 0.5;
-                break;
-            case <= 6.0:
-                Weight *= random.NextDouble() + 1.0;
-                break;
-            case <= 8.0:
-                Weight *= random.NextDouble();
-                break;
-        }
+    public void Mutate(Random random) => Mutated = Utils.MutateValue(random, ref Weight);
 
-        Mutated = Math.Abs(oldWeight - Weight) != 0.0;
-    }
+    public void Learn(NeuralNetwork network, double originalFitness) => WeightGradient = network.ComputeFitnessDifference(originalFitness, ref Weight);
+
+    public void ApplyGradients(double learnRate) => Weight -= WeightGradient * learnRate;
 }

@@ -43,7 +43,7 @@ public class Layer
             Neurons[i].MergeLinks(goodNeurons[i].Links, badNeurons[i].Links);
     }
 
-    public void FeedForward(IReadOnlyList<Neuron> previousNeurons)
+    public void FeedForward()
     {
         foreach (Neuron neuron in Neurons)
             neuron.FeedForward();
@@ -53,5 +53,17 @@ public class Layer
     {
         foreach (Neuron neuron in Neurons)
             neuron.Mutate(random);
+    }
+
+    public void Learn(NeuralNetwork network, double originalFitness)
+    {
+        foreach (Neuron neuron in Neurons)
+            neuron.Learn(network, originalFitness);
+    }
+
+    public void ApplyGradients(double learnRate)
+    {
+        foreach (Neuron neuron in Neurons)
+            neuron.ApplyGradients(learnRate);
     }
 }

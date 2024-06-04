@@ -10,6 +10,11 @@ public class Neuron
     [XmlIgnore]
     public double Value;
     
+    public double Bias;
+
+    [XmlIgnore]
+    internal double BiasGradient;
+    
     public Link[] Links;
     
     public Neuron()
@@ -22,9 +27,9 @@ public class Neuron
     {
         Links = new Link[previousNeurons.Count];
         
-        // Set the weights randomly between -0.5 and 0.5
+        // Set the weights randomly between -1 and +1
         for (int i = 0; i < previousNeurons.Count; i++)
-            Links[i] = new(random.NextDouble() - 0.5, previousNeurons[i], this);
+            Links[i] = new((random.NextDouble() * 2.0 - 1.0) / Math.Sqrt(previousNeurons.Count), previousNeurons[i], this);
     }
 
     public void CopyLinks(IReadOnlyList<Link> links)
@@ -44,17 +49,35 @@ public class Neuron
 
     public void FeedForward()
     {
-        double value = 0.25;
+        double value = Bias;
 
         foreach (Link link in Links)
             value += link.Weight * link.Origin.Value;
 
-        Value = Math.Tanh(value);
+        Value = Utils.Sigmoid(value);
     }
 
     public void Mutate(Random random)
     {
         foreach (Link link in Links)
             link.Mutate(random);
+        
+        Utils.MutateValue(random, ref Bias);
+    }
+
+    public void Learn(NeuralNetwork network, double originalFitness)
+    {
+        foreach (Link link in Links)
+            link.Learn(network, originalFitness);
+
+        BiasGradient = network.ComputeFitnessDifference(originalFitness, ref Bias);
+    }
+
+    public void ApplyGradients(double learnRate)
+    {
+        foreach (Link link in Links)
+            link.ApplyGradients(learnRate);
+
+        Bias -= BiasGradient * learnRate;
     }
 }

@@ -34,8 +34,8 @@ public static class ImGuiUtils
             Vector2 newValue = (io.MousePos - p0) / size;
 
             // Remap the value from [0; 1] to [min; max]
-            value.X = Utils.RemapValue(newValue.X, uniformRange, plottingRange);
-            value.Y = Utils.RemapValue(newValue.Y, uniformRange, plottingRange);
+            value.X = Calc.RemapValue(newValue.X, uniformRange, plottingRange);
+            value.Y = Calc.RemapValue(newValue.Y, uniformRange, plottingRange);
 
             // Clamp the value between min and max
             value.X = Math.Clamp(value.X, min, max);
@@ -48,8 +48,8 @@ public static class ImGuiUtils
 
         // Remap from [min; max] to [0, 1]
         NVector2 clamped = new(
-            Utils.RemapValue(value.X, plottingRange, uniformRange),
-            Utils.RemapValue(value.Y, plottingRange, uniformRange)
+            Calc.RemapValue(value.X, plottingRange, uniformRange),
+            Calc.RemapValue(value.Y, plottingRange, uniformRange)
         );
 
         // Compute cursor position
@@ -90,8 +90,8 @@ public static class ImGuiUtils
             Vector2 newValue = (io.MousePos - p0) / size;
 
             // Remap the value from [0; 1] to [min; max]
-            value.X = Utils.RemapValue(newValue.X, uniformRange, plottingRange);
-            value.Y = Utils.RemapValue(newValue.Y, uniformRange, plottingRange);
+            value.X = Calc.RemapValue(newValue.X, uniformRange, plottingRange);
+            value.Y = Calc.RemapValue(newValue.Y, uniformRange, plottingRange);
 
             // Clamp the value between min and max
             value.X = Math.Clamp(value.X, -1f, 1f);
@@ -108,8 +108,8 @@ public static class ImGuiUtils
 
         // Remap from [min; max] to [0, 1]
         NVector2 clamped = new(
-            Utils.RemapValue(value.X, plottingRange, uniformRange),
-            Utils.RemapValue(value.Y, plottingRange, uniformRange)
+            Calc.RemapValue(value.X, plottingRange, uniformRange),
+            Calc.RemapValue(value.Y, plottingRange, uniformRange)
         );
 
         // Compute cursor position
@@ -149,8 +149,8 @@ public static class ImGuiUtils
             Vector2 newValue = (io.MousePos - p0) / size;
 
             // Remap the value from [0; 1] to [min; max]
-            value.X = Utils.RemapValue(newValue.X, uniformRange, plottingRange);
-            value.Y = Utils.RemapValue(newValue.Y, uniformRange, plottingRange);
+            value.X = Calc.RemapValue(newValue.X, uniformRange, plottingRange);
+            value.Y = Calc.RemapValue(newValue.Y, uniformRange, plottingRange);
 
             // Clamp the value between min and max
             value.X = Math.Clamp(value.X, -1f, 1f);
@@ -167,12 +167,12 @@ public static class ImGuiUtils
 
         // Remap from [min; max] to [0, 1]
         NVector2 valueClamped = new(
-            Utils.RemapValue(value.X, plottingRange, uniformRange),
-            Utils.RemapValue(value.Y, plottingRange, uniformRange)
+            Calc.RemapValue(value.X, plottingRange, uniformRange),
+            Calc.RemapValue(value.Y, plottingRange, uniformRange)
         );
         NVector2 expectedClamped = new(
-            Utils.RemapValue(expected.X, plottingRange, uniformRange),
-            Utils.RemapValue(expected.Y, plottingRange, uniformRange)
+            Calc.RemapValue(expected.X, plottingRange, uniformRange),
+            Calc.RemapValue(expected.Y, plottingRange, uniformRange)
         );
 
         // Compute cursor position
@@ -195,6 +195,9 @@ public static class ImGuiUtils
 
     public static void DisplayNeuralNetwork(NeuralNetwork network) => DisplayNeuralNetwork(network, new(600f, 600f));
 
+    private static bool mouseHoverLink;
+    private static readonly Color GoodLinkColor = Color.Green;
+    private static readonly Color BadLinkColor = Color.Red;
     public static void DisplayNeuralNetwork(NeuralNetwork network, Vector2 givenSize)
     {
         NVector2 size = givenSize.ToNumerics();
@@ -206,6 +209,11 @@ public static class ImGuiUtils
 
         ImDrawListPtr drawList = ImGui.GetWindowDrawList();
         NVector2 basePosition = ImGui.GetWindowPos() + new NVector2(25f, 35f);
+        NVector2 mousePosition = ImGui.GetMousePos();
+        
+        Link hoveredLink = null;
+        NVector2 hoveredLinkOriginPosition = NVector2.Zero;
+        NVector2 hoveredLinkDestinationPosition = NVector2.Zero;
 
         for (int i = 0; i < layers; i++)
         {
@@ -239,14 +247,37 @@ public static class ImGuiUtils
                     float previousNeuronPositionY = previousNeuronSpacing * k + previousNeuronOffsetY;
                     NVector2 previousNeuronPosition = basePosition + new NVector2(previousLayerPositionX + layerWidth * 0.5f, previousNeuronPositionY + layerWidth * 0.5f);
 
-                    Color maxColor = Color.Green;
+                    if (Calc.LineIntersects(previousNeuronPosition, neuronPosition, mousePosition))
+                    {
+                        hoveredLink = link;
+                        hoveredLinkOriginPosition = previousNeuronPosition;
+                        hoveredLinkDestinationPosition = neuronPosition;
+                        continue;
+                    }
+
+                    Color color = link.Weight > 0.0 ? GoodLinkColor : BadLinkColor;
                     if (link.Mutated)
-                        maxColor = Color.Yellow;
-                    Color weightColor = Color.Lerp(new(maxColor, 0f), maxColor, (float) link.Weight);
+                        color = Color.Yellow;
+                    Color weightColor = Color.Lerp(new(color, 0f), color, (float) Math.Abs(link.Weight) * (mouseHoverLink ? 0.25f : 1f));
                     
                     drawList.AddLine(previousNeuronPosition, neuronPosition, weightColor.PackedValue);
                 }
             }
+        }
+
+        mouseHoverLink = hoveredLink != null;
+
+        if (mouseHoverLink)
+        {
+            Color color = hoveredLink!.Weight > 0.0 ? GoodLinkColor : BadLinkColor;
+            if (hoveredLink.Mutated)
+                color = Color.Yellow;
+                    
+            drawList.AddLine(hoveredLinkOriginPosition, hoveredLinkDestinationPosition, color.PackedValue);
+
+            string text = hoveredLink.Weight.ToString("F2", CultureInfo.InvariantCulture);
+            NVector2 textSize = ImGui.CalcTextSize(text);
+            drawList.AddText(hoveredLinkOriginPosition + (hoveredLinkDestinationPosition - hoveredLinkOriginPosition) * 0.5f - textSize * 0.5f, Color.White.PackedValue, text);
         }
 
         for (int i = 0; i < layers; i++)

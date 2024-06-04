@@ -2,13 +2,14 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
-using MachineLearning.Utils;
 
 namespace MachineLearning.Models.NeuralNetwork;
 
 [Serializable]
 public class NeuralNetwork : IComparable<NeuralNetwork>
 {
+    public delegate double FitnessComputation(NeuralNetwork network);
+
     [XmlIgnore]
     public Layer[] Layers;
 
@@ -19,9 +20,9 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         set
         {
             Layers = new Layer[LayerSizes.Length];
-            
+
             Layers[0] = new(LayerSizes[0]);
-            
+
             for (int i = 0; i < value.Length; i++)
                 Layers[i + 1] = value[i];
         }
@@ -29,9 +30,12 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
 
     [XmlElement("LayerSizes", Order = 0)]
     public int[] LayerSizes;
-    
+
     [XmlIgnore]
-    public double Fitness = 0;
+    public double Fitness = 0.0;
+
+    [XmlIgnore]
+    public FitnessComputation FitnessFunction;
 
     [XmlIgnore]
     public int Rank;
@@ -41,11 +45,17 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
 
     public NeuralNetwork() => random = new(DateTime.Now.Millisecond);
 
-    public NeuralNetwork(int[] layers, Random random)
+    public NeuralNetwork(Random random, params int[] layerSizes)
+        : this(random, null, layerSizes)
+    {
+    }
+
+    public NeuralNetwork(Random random, FitnessComputation fitnessFunction, params int[] layerSizes)
     {
         this.random = random;
+        FitnessFunction = fitnessFunction;
 
-        InitLayers(layers);
+        InitLayers(layerSizes);
         InitNeurons();
         InitLinks();
     }
@@ -57,6 +67,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     public NeuralNetwork(NeuralNetwork copy)
     {
         random = copy.random;
+        FitnessFunction = copy.FitnessFunction;
 
         InitLayers(copy.LayerSizes);
         InitNeurons();
@@ -75,6 +86,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             throw new ArgumentException("Cannot merge networks with different amounts of layers");
         
         random = badNetwork.random;
+        FitnessFunction = badNetwork.FitnessFunction;
 
         InitLayers(goodNetwork.LayerSizes);
         InitNeurons();
@@ -82,20 +94,20 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         MergeLinks(goodNetwork.Layers, badNetwork.Layers);
     }
 
-    private void InitLayers(int[] layers)
+    private void InitLayers(params int[] layerSizes)
     {
-        if (layers.Length < 3)
+        if (layerSizes.Length < 3)
             throw new ArgumentException("A NeuralNetwork must have at least 1 input layer, 1 hidden layer, and 1 output layer");
         
-        LayerSizes = layers;
-        Layers = new Layer[layers.Length];
+        LayerSizes = layerSizes;
+        Layers = new Layer[layerSizes.Length];
 
-        for (int i = 0; i < layers.Length; i++)
+        for (int i = 0; i < layerSizes.Length; i++)
         {
-            if (layers[i] < 1)
+            if (layerSizes[i] < 1)
                 throw new ArgumentException("All NeuralNetwork Layers must have at least 1 Neuron");
             
-            Layers[i] = new(layers[i]);
+            Layers[i] = new(layerSizes[i]);
         }
     }
 
@@ -123,7 +135,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].MergeLinks(goodLayers[i].Neurons, badLayers[i].Neurons);
     }
 
-    public double[] FeedForward(IReadOnlyList<double> inputs)
+    public double[] ComputeOutputs(IReadOnlyList<double> inputs)
     {
         if (inputs.Count != Layers[0].Size)
             throw new ArgumentException("Inputs array has the wrong size");
@@ -132,7 +144,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[0].Neurons[i].Value = inputs[i];
 
         for (int i = 1; i < Layers.Length; i++)
-            Layers[i].FeedForward(Layers[i - 1].Neurons);
+            Layers[i].FeedForward();
 
         Neuron[] lastLayerNeurons = Layers[^1].Neurons;
         double[] result = new double[lastLayerNeurons.Length];
@@ -149,6 +161,19 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].Mutate(random);
     }
 
+    public void Learn(double learnRate) => Learn(FitnessFunction, learnRate);
+
+    public void Learn(FitnessComputation fitnessFunction, double learnRate)
+    {
+        double originalFitness = fitnessFunction(this);
+        
+        for (int i = 1; i < Layers.Length; i++)
+            Layers[i].Learn(this, originalFitness);
+        
+        for (int i = 1; i < Layers.Length; i++)
+            Layers[i].ApplyGradients(learnRate);
+    }
+
     public void ResetNeurons()
     {
         InitNeurons();
@@ -157,9 +182,32 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         Mutate();
     }
 
-    public void Save(string path) => File.WriteAllText(path, XmlSerializationHelper.GetXml(this, true));
+    public double ComputeFitness()
+    {
+        if (FitnessFunction == null)
+            throw new ArgumentNullException(nameof(FitnessFunction), "Cannot call ComputeFitness() on a NeuralNetwork with a null FitnessFunction");
+        
+        return ComputeFitness(FitnessFunction);
+    }
 
-    public static NeuralNetwork Load(string path) => XmlSerializationHelper.LoadFromXml<NeuralNetwork>(File.ReadAllText(path));
+    public double ComputeFitness(FitnessComputation fitnessFunction) => fitnessFunction(this);
+
+    internal double ComputeFitnessDifference(double originalFitness, ref double value)
+    {
+        const double Offset = 1e-5;
+
+        value += Offset;
+        double fitnessDiff = ComputeFitness() - originalFitness;
+        value -= Offset;
+        
+        return fitnessDiff / Offset;
+    }
+
+    public void UpdateFitness() => Fitness = ComputeFitness();
+
+    public void Save(string path) => File.WriteAllText(path, Utils.GetXml(this, true));
+
+    public static NeuralNetwork Load(string path) => Utils.LoadFromXml<NeuralNetwork>(File.ReadAllText(path));
 
     public int CompareTo(NeuralNetwork other)
     {

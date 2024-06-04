@@ -29,15 +29,14 @@ public class Application : Game
     private readonly Arrow[] arrows = new Arrow[ArrowCount];
     private readonly NeuralNetwork[] networks = new NeuralNetwork[ArrowCount];
         
-    private const int NetworkInputCount = 5;
+    private const int NetworkInputCount = 6;
     private readonly int[] networkHiddenLayersCount = [5];
     private const int NetworkOutputCount = 1;
+    private const double NetworkLearnRate = 0.15;
 
     private const string SavePath = "network_save.xml";
 
-    private readonly Vector2 startingArrowPosition;
-    private readonly Vector2 startingTargetPosition;
-    private readonly float startingTargetOffsetY;
+    private readonly RectangleF arrowSpawnBounds;
 
     private bool running;
     private bool runningForOneFrame;
@@ -45,7 +44,7 @@ public class Application : Game
     private Vector2 targetPosition;
 
     private float timeBetweenResets = 7f;
-    private float timeLeftBeforeReset;
+    public float TimeLeftBeforeReset { get; private set; }
     private int currentIteration;
     
     private bool bestArrowSelected;
@@ -70,11 +69,9 @@ public class Application : Game
         InactiveSleepTime = TimeSpan.Zero;
         graphics.SynchronizeWithVerticalRetrace = true;
 
-        startingArrowPosition = new(WindowWidth * 0.3f, WindowHeight * 0.5f);
-        startingTargetPosition = new(WindowWidth * 0.6f, WindowHeight * 0.5f);
-        startingTargetOffsetY = WindowHeight * 0.4f;
-
         random = new(DateTime.Now.Millisecond);
+
+        arrowSpawnBounds = new(WindowSize.ToVector2() * 0.1f, WindowSize.ToVector2() * 0.9f);
     }
 
     protected override void Initialize()
@@ -82,6 +79,8 @@ public class Application : Game
         imGuiRenderer = new(this);
 
         InitializeSimulation();
+
+        Vector2 startingArrowPosition = GetRandomArrowSpawn();
             
         for (int i = 0; i < ArrowCount; i++)
         {
@@ -91,7 +90,7 @@ public class Application : Game
                 networkSize[j + 1] = networkHiddenLayersCount[j];
             networkSize[^1] = NetworkOutputCount;
                 
-            networks[i] = new(networkSize, random)
+            networks[i] = new(random, ComputeFitness, networkSize)
             {
                 Rank = i
             };
@@ -142,7 +141,10 @@ public class Application : Game
             foreach (Arrow arrow in arrows)
                 arrow.Update(deltaTime, targetPosition);
 
-            if (timeLeftBeforeReset <= 0f)
+            foreach (NeuralNetwork network in networks)
+                network.Learn(NetworkLearnRate);
+
+            if (TimeLeftBeforeReset <= 0f)
             {
                 ResetSimulation(true);
             }
@@ -156,7 +158,7 @@ public class Application : Game
                 Array.Sort(arrows);
             }
 
-            timeLeftBeforeReset -= deltaTime;
+            TimeLeftBeforeReset -= deltaTime;
 
             if (runningForOneFrame)
                 runningForOneFrame = false;
@@ -224,7 +226,7 @@ public class Application : Game
         ImGui.Text($"Running at {simulationSpeed.ToString("F2", CultureInfo.InvariantCulture)}x speed");
         ImGui.Text($"{(simulationSpeed / timeBetweenResets).ToString("F3", CultureInfo.InvariantCulture)} iterations per second");
         
-        ImGui.TextColored(Color.Orange.ToVector4().ToNumerics(), $"Next reset in {timeLeftBeforeReset}s");
+        ImGui.TextColored(Color.Orange.ToVector4().ToNumerics(), $"Next reset in {TimeLeftBeforeReset}s");
         ImGui.Text($"Target position {targetPosition}");
             
         ImGui.SeparatorText("Actions");
@@ -275,14 +277,14 @@ public class Application : Game
             ImGui.SameLine();
             ImGui.Text($"Current rank {selectedArrow.Rank + 1}");
             ImGui.Text($"Last rank {selectedArrow.LastRank + 1}");
-            ImGui.Text($"Fitness {selectedArrow.NeuralNetwork.Fitness}");
+            ImGui.Text($"Fitness {selectedArrow.Network.Fitness}");
 
             ImGui.Checkbox("Show neural network", ref showNeuralNetwork);
             
             if (showNeuralNetwork)
             {
                 ImGui.Begin("Neural Network");
-                ImGuiUtils.DisplayNeuralNetwork(selectedArrow.NeuralNetwork);
+                ImGuiUtils.DisplayNeuralNetwork(selectedArrow.Network);
                 ImGui.End();
             }
         }
@@ -303,13 +305,13 @@ public class Application : Game
 
         int selectedArrowIndex = selectedArrow?.Rank ?? -1;
 
-        Vector2 randomPosition = new(random.NextSingle() * 0.5f * WindowWidth + WindowWidth * 0.25f,
-            random.NextSingle() * 0.5f * WindowHeight + WindowHeight * 0.25f);
+        Vector2 startingArrowPosition = GetRandomArrowSpawn();
+        
         for (int i = 0; i < ArrowCount; i++)
         {
             ref Arrow arrow = ref arrows[i];
             
-            arrow = new(randomPosition, networks[i], arrow.Rank);
+            arrow = new(startingArrowPosition, networks[i], arrow.Rank);
 
             if (arrow.LastRank == selectedArrowIndex)
                 selectedArrow = arrow;
@@ -346,14 +348,14 @@ public class Application : Game
 
     private void InitializeSimulation()
     {
-        timeLeftBeforeReset = timeBetweenResets;
+        TimeLeftBeforeReset = timeBetweenResets;
 
         targetPosition = new(random.NextSingle() * 0.5f * WindowWidth + WindowWidth * 0.25f, random.NextSingle() * 0.5f * WindowHeight + WindowHeight * 0.25f);
 
         currentIteration++;
     }
 
-    private void SaveBestNetwork() => arrows[0].NeuralNetwork.Save(SavePath);
+    private void SaveBestNetwork() => arrows[0].Network.Save(SavePath);
 
     private void LoadSavedNetwork()
     {
@@ -363,5 +365,63 @@ public class Application : Game
             networks[i] = new(saved);
         
         ResetSimulation(false);
+    }
+
+    private Vector2 GetRandomArrowSpawn() => random.NextVector2() * ((Point2) arrowSpawnBounds.Size - arrowSpawnBounds.Position) + arrowSpawnBounds.Position;
+
+    private double ComputeFitness(NeuralNetwork network)
+    {
+        Arrow arrow = arrows[network.Rank];
+        
+        // First compute the network outputs with the current inputs
+        
+        Vector2 windowSize = WindowSize.ToVector2();
+        double[] networkOutput = network.ComputeOutputs(
+            [
+                arrow.Angle / MathHelper.TwoPi,
+                arrow.Position.X / windowSize.X,
+                arrow.Position.Y / windowSize.Y,
+                targetPosition.X / windowSize.X,
+                targetPosition.Y / windowSize.Y,
+                TimeLeftBeforeReset
+            ]
+        );
+        arrow.Angle += (float) networkOutput[0] * Arrow.MaxAngleTilting;
+        arrow.Angle %= MathHelper.TwoPi;
+        
+        // Then compute the actual fitness
+        
+        const float MaxDistance = 100f;
+        const float MaxDistanceSquared = MaxDistance * MaxDistance;
+        
+        // The fitness is computed in two different ways:
+        // - If the arrow is outside the MaxDistance range of the target,
+        //   we only care about the current arrow angle
+        // - If it is inside that range, we check how close it is
+        //   to the target, and we make sure that the arrow isn't facing away
+        //   from the target
+        
+        const float AngleFitnessValueFar = 10f;
+        const float MaxAngleValueFar = MathHelper.PiOver4;
+        
+        const float AngleFitnessValueClose = 5f;
+        const float MaxAngleValueClose = MathHelper.PiOver2;
+        const float PositionXFitnessValue = 1f;
+        const float PositionYFitnessValue = 1f;
+
+        float result = 0f;
+
+        if ((targetPosition - arrow.Position).LengthSquared() > MaxDistanceSquared)
+        {
+            result += Calc.ComputeDifference(arrow.Angle, arrow.TargetAngle, MaxAngleValueFar, AngleFitnessValueFar);
+        }
+        else
+        {
+            result += Calc.ComputeDifference(arrow.Angle, arrow.TargetAngle, MaxAngleValueClose, AngleFitnessValueClose);
+            result += Calc.ComputeDifference(arrow.Position.X, targetPosition.X, MaxDistance, PositionXFitnessValue);
+            result += Calc.ComputeDifference(arrow.Position.Y, targetPosition.Y, MaxDistance, PositionYFitnessValue);
+        }
+
+        return result;
     }
 }
