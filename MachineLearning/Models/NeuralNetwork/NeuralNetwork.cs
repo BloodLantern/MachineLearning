@@ -135,12 +135,12 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].MergeLinks(goodLayers[i].Neurons, badLayers[i].Neurons);
     }
 
-    public double[] ComputeOutputs(IReadOnlyList<double> inputs)
+    public double[] ComputeOutputs(params double[] inputs)
     {
-        if (inputs.Count != Layers[0].Size)
+        if (inputs.Length != Layers[0].Size)
             throw new ArgumentException("Inputs array has the wrong size");
         
-        for (int i = 0; i < inputs.Count; i++)
+        for (int i = 0; i < inputs.Length; i++)
             Layers[0].Neurons[i].Value = inputs[i];
 
         for (int i = 1; i < Layers.Length; i++)

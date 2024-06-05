@@ -3,9 +3,11 @@ using System.Globalization;
 using ImGuiNET;
 using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
+using MonoGame.Utils;
+using MonoGame.Utils.Extensions;
 using NVector2 = System.Numerics.Vector2;
 
-namespace Arrows.Utils;
+namespace MachineLearning;
 
 public static class ImGuiUtils
 {

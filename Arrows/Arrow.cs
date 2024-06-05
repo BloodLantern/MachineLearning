@@ -1,9 +1,9 @@
 ﻿using System;
-using Arrows.Utils;
 using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
+using MonoGame.Utils;
 
 namespace Arrows;
 

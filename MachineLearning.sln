@@ -7,7 +7,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MachineLearning", "MachineL
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arrows", "Arrows\Arrows.csproj", "{333FB3F1-933D-48CF-A09F-EB109CB71F9C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Monogame.ImGuiNet", "MonoGame.ImGuiNet\MonoGame.ImGuiNet\Monogame.ImGuiNet.csproj", "{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonoGame.ImGuiNet", "MonoGame.ImGuiNet\MonoGame.ImGuiNet\MonoGame.ImGuiNet.csproj", "{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonoGame.Utils", "MonoGame.Utils\MonoGame.Utils.csproj", "{DBB33A3A-3165-4A88-8C90-6F71EFCE44AB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Categories", "Categories\Categories.csproj", "{7BED4BDF-74D5-4F4B-8AC0-0242AD003B6A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +31,14 @@ Global
 		{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DBB33A3A-3165-4A88-8C90-6F71EFCE44AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DBB33A3A-3165-4A88-8C90-6F71EFCE44AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DBB33A3A-3165-4A88-8C90-6F71EFCE44AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DBB33A3A-3165-4A88-8C90-6F71EFCE44AB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7BED4BDF-74D5-4F4B-8AC0-0242AD003B6A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7BED4BDF-74D5-4F4B-8AC0-0242AD003B6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7BED4BDF-74D5-4F4B-8AC0-0242AD003B6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7BED4BDF-74D5-4F4B-8AC0-0242AD003B6A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

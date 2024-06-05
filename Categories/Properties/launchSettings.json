@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Categories": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

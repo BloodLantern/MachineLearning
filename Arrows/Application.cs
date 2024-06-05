@@ -4,14 +4,16 @@ using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Arrows.Utils;
 using ImGuiNET;
+using MachineLearning;
 using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
 using MonoGame.Extended.Input;
 using MonoGame.ImGuiNet;
+using MonoGame.Utils;
+using MonoGame.Utils.Extensions;
 
 namespace Arrows;
 
@@ -128,7 +130,7 @@ public class Application : Game
 
         float deltaTime = simulationSpeedUncapped ? 1f / simulationFrameRate : gameTime.GetElapsedSeconds();
 
-        if (mouse.WasButtonJustUp(MouseButton.Left) && !ImGui.GetIO().WantCaptureMouse && new Rectangle(Point.Zero, WindowSize).Contains(mouse.Position))
+        if (mouse.IsButtonReleased(MouseButton.Left) && !ImGui.GetIO().WantCaptureMouse && new Rectangle(Point.Zero, WindowSize).Contains(mouse.Position))
         {
             foreach (Arrow arrow in arrows)
             {

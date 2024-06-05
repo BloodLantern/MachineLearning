@@ -9,4 +9,12 @@
     <LangVersion>default</LangVersion>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="ImGui.NET" Version="1.90.6.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MonoGame.Utils\MonoGame.Utils.csproj" />
+  </ItemGroup>
+
 </Project>

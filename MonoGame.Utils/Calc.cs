@@ -1,7 +1,6 @@
-﻿using System;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 
-namespace Arrows.Utils;
+namespace MonoGame.Utils;
 
 public static class Calc
 {

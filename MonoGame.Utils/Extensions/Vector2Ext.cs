@@ -1,7 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using MonoGame.Extended;
 
-namespace Arrows;
+namespace MonoGame.Utils.Extensions;
 
 public static class Vector2Ext
 {

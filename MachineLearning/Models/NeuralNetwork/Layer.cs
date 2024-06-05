@@ -66,4 +66,6 @@ public class Layer
         foreach (Neuron neuron in Neurons)
             neuron.ApplyGradients(learnRate);
     }
+
+    public Neuron this[int index] => Neurons[index];
 }

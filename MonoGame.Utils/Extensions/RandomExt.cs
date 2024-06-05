@@ -1,7 +1,6 @@
-﻿using System;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 
-namespace Arrows;
+namespace MonoGame.Utils.Extensions;
 
 public static class RandomExt
 {
