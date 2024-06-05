@@ -32,7 +32,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     public int[] LayerSizes;
 
     [XmlIgnore]
-    public double Fitness = 0.0;
+    public double Fitness;
 
     [XmlIgnore]
     public FitnessComputation FitnessFunction;

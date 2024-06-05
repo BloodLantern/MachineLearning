@@ -78,6 +78,7 @@ public class Neuron
         foreach (Link link in Links)
             link.ApplyGradients(learnRate);
 
-        Bias -= BiasGradient * learnRate;
+        if (BiasGradient > 0.0)
+            Bias += BiasGradient * learnRate;
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using Arrows.Utils;
 using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -16,8 +17,19 @@ public class Arrow : IComparable<Arrow>
 
     public Vector2 Position { get; set; }
     public Vector2 TargetDirection { get; private set; }
-    public float Angle { get; set; }
-    public float TargetAngle { get; private set; }
+
+    private float angle;
+    public float Angle
+    {
+        get => angle;
+        set => angle = Calc.ClampRadiantAngle(value);
+    }
+    private float targetAngle;
+    public float TargetAngle
+    {
+        get => targetAngle;
+        private set => targetAngle = Calc.ClampRadiantAngle(value);
+    }
 
     public readonly NeuralNetwork Network;
     public int Rank => Network.Rank;
@@ -32,10 +44,8 @@ public class Arrow : IComparable<Arrow>
 
     public void Update(float deltaTime, Vector2 targetPosition)
     {
-        TargetDirection = (targetPosition - Position).NormalizedCopy();
-        TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X);
-        
         Network.UpdateFitness();
+        Angle += ComputeNextAngleDelta(targetPosition);
 
         UpdatePosition(deltaTime);
     }
@@ -44,6 +54,26 @@ public class Arrow : IComparable<Arrow>
     {
         Position += new Vector2(MathF.Cos(Angle) * Velocity, MathF.Sin(Angle) * Velocity) * deltaTime;
         Position = Vector2.Clamp(Position, Vector2.Zero, Application.Instance.WindowSize.ToVector2());
+    }
+
+    public float ComputeNextAngleDelta(Vector2 targetPosition)
+    {
+        TargetDirection = (targetPosition - Position).NormalizedCopy();
+        TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X);
+        
+        Vector2 windowSize = Application.Instance.WindowSize.ToVector2();
+        double[] networkOutput = Network.ComputeOutputs(
+            [
+                Angle / MathHelper.TwoPi,
+                Position.X / windowSize.X,
+                Position.Y / windowSize.Y,
+                targetPosition.X / windowSize.X,
+                targetPosition.Y / windowSize.Y,
+                Application.Instance.TimeLeftBeforeReset / Application.Instance.TimeBetweenResets
+            ]
+        );
+
+        return (float) networkOutput[0] * MaxAngleTilting;
     }
         
     public void Render(SpriteBatch spriteBatch, Color tintColor)

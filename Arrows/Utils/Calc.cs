@@ -16,4 +16,13 @@ public static class Calc
 
     public static bool FloatEquals(float a, float b, float tolerance = 1e-5f)
         => MathF.Abs(a - b) < tolerance;
+
+    /// <summary>
+    /// Clamps a radiant angle in the range [0; 2 * Pi]
+    /// </summary>
+    /// <param name="angle">The radiant angle to clamp.</param>
+    /// <returns>The clamped radiant angle.</returns>
+    public static float ClampRadiantAngle(float angle) => (angle + MathHelper.TwoPi) % MathHelper.TwoPi;
+
+    public static Vector2 DirectionFromAngle(float angle) => new(MathF.Cos(angle), MathF.Sin(angle));
 }
