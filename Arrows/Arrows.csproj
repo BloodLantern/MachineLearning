@@ -30,9 +30,6 @@
     <ProjectReference Include="..\MonoGame.ImGuiNet\MonoGame.ImGuiNet\MonoGame.ImGuiNet.csproj" />
     <ProjectReference Include="..\MachineLearning\MachineLearning.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Utils\" />
-  </ItemGroup>
   <Target Name="RestoreDotnetTools" BeforeTargets="Restore">
     <Message Text="Restoring dotnet tools" Importance="High" />
     <Exec Command="dotnet tool restore" />

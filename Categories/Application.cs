@@ -30,6 +30,8 @@ public class Application : Game
     
     private NeuralNetwork network;
 
+    private ItemType[,] pixelTypes;
+
     public Application()
     {
         Instance = this;
@@ -65,6 +67,8 @@ public class Application : Game
         }
 
         network = new(random, 2, 3, 2);
+        
+        pixelTypes = new ItemType[WindowWidth, WindowHeight];
 
         base.Initialize();
     }
@@ -78,12 +82,20 @@ public class Application : Game
 
     protected override void Update(GameTime gameTime)
     {
-        if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
-            Exit();
-
-        // TODO: Add your update logic here
-
+        UpdatePixelTypes();
         base.Update(gameTime);
+    }
+
+    private void UpdatePixelTypes()
+    {
+        for (int x = 0; x < WindowWidth; x++)
+        {
+            for (int y = 0; y < WindowHeight; y++)
+            {
+                double[] result = network.ComputeOutputs(x, y);
+                pixelTypes[x, y] = result[0] > result[1] ? ItemType.Blue : ItemType.Red;
+            }
+        }
     }
 
     protected override void Draw(GameTime gameTime)
@@ -92,17 +104,13 @@ public class Application : Game
 
         spriteBatch.Begin();
 
+        Color blue = new(Color.Blue, 0.5f);
+        Color red = new(Color.Red, 0.5f);
         for (int x = 0; x < WindowWidth; x++)
         {
             for (int y = 0; y < WindowHeight; y++)
             {
-                Color color = Color.Red;
-                
-                double[] result = network.ComputeOutputs(x, y);
-                if (result[0] > result[1])
-                    color = Color.Blue;
-                
-                spriteBatch.DrawPoint(x, y, color);
+                //spriteBatch.DrawPoint(x, y, pixelTypes[x, y] == ItemType.Blue ? blue : red);
             }
         }
         
@@ -121,6 +129,9 @@ public class Application : Game
     private void DrawImGui()
     {
         ImGui.Begin("Network");
+
+        if (ImGui.Button("Update pixel types"))
+            UpdatePixelTypes();
 
         for (int i = 0; i < network.Layers.Length; i++)
         {
