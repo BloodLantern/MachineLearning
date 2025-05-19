@@ -34,7 +34,7 @@ public class Arrow : IComparable<Arrow>
     public readonly NeuralNetwork Network;
     public int Rank => Network.Rank;
     public readonly int LastRank;
-        
+
     public Arrow(Vector2 position, NeuralNetwork network, int lastRank)
     {
         Position = position;
@@ -60,7 +60,7 @@ public class Arrow : IComparable<Arrow>
     {
         TargetDirection = (targetPosition - Position).NormalizedCopy();
         TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X);
-        
+
         Vector2 windowSize = Application.Instance.WindowSize.ToVector2();
         double[] networkOutput = Network.ComputeOutputs(
             [
@@ -68,14 +68,13 @@ public class Arrow : IComparable<Arrow>
                 Position.X / windowSize.X,
                 Position.Y / windowSize.Y,
                 targetPosition.X / windowSize.X,
-                targetPosition.Y / windowSize.Y,
-                Application.Instance.TimeLeftBeforeReset / Application.Instance.TimeBetweenResets
+                targetPosition.Y / windowSize.Y
             ]
         );
 
         return (float) networkOutput[0] * MaxAngleTilting;
     }
-        
+
     public void Render(SpriteBatch spriteBatch, Color tintColor)
         => spriteBatch.Draw(Texture, new(Position.ToPoint(), Size.ToPoint()), null, tintColor, Angle, Texture.Bounds.Size.ToVector2() * 0.5f, SpriteEffects.None, 0f);
 

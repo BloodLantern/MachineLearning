@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Xml.Serialization;
 
 namespace MachineLearning.Models.NeuralNetwork;
@@ -8,60 +8,67 @@ namespace MachineLearning.Models.NeuralNetwork;
 public class Neuron
 {
     [XmlIgnore]
-    public double Value;
-    
+    public double Output;
+
     public double Bias;
 
     [XmlIgnore]
     internal double BiasGradient;
-    
+
     public Link[] Links;
-    
+
+    public int InputCount => Links.Length;
+
+    public double[] Weights => Links.Select(l => l.Weight).ToArray();
+
+    [XmlIgnore]
+    public double LastErrorFactor { get; private set; }
+
     public Neuron()
     {
     }
 
-    public Neuron(double value) => Value = value;
+    public Neuron(double output) => Output = output;
 
-    public void InitLinks(IReadOnlyList<Neuron> previousNeurons, Random random)
+    public void InitLinks(Neuron[] previousNeurons, Random random)
     {
-        Links = new Link[previousNeurons.Count];
-        
+        Links = new Link[previousNeurons.Length];
+
         // Set the weights randomly between -1 and +1
-        for (int i = 0; i < previousNeurons.Count; i++)
-            Links[i] = new((random.NextDouble() * 2.0 - 1.0) / Math.Sqrt(previousNeurons.Count), previousNeurons[i], this);
+        for (int i = 0; i < previousNeurons.Length; i++)
+            Links[i] = new((random.NextDouble() * 2.0 - 1.0) / Math.Sqrt(previousNeurons.Length), previousNeurons[i], this);
     }
 
-    public void CopyLinks(IReadOnlyList<Link> links)
+    public void CopyLinks(Link[] links)
     {
-        for (int i = 0; i < links.Count; i++)
+        for (int i = 0; i < InputCount; i++)
             Links[i].CopyWeight(links[i]);
     }
 
-    public void MergeLinks(IReadOnlyList<Link> goodLinks, IReadOnlyList<Link> badLinks)
+    public void MergeLinks(Link[] goodLinks, Link[] badLinks)
     {
-        if (goodLinks.Count != badLinks.Count)
+        if (goodLinks.Length != badLinks.Length)
             throw new ArgumentException("Cannot merge weight arrays of different sizes");
 
-        for (int i = 0; i < goodLinks.Count; i++)
+        for (int i = 0; i < goodLinks.Length; i++)
             Links[i].MergeWeights(goodLinks[i], badLinks[i]);
     }
 
-    public void FeedForward()
+    public void FeedForward(ActivationFunction activationFunction)
     {
         double value = Bias;
 
         foreach (Link link in Links)
-            value += link.Weight * link.Origin.Value;
+            value += link.Weight * link.Origin.Output;
 
-        Value = Utils.Sigmoid(value);
+        Output = activationFunction(value);
     }
 
     public void Mutate(Random random)
     {
         foreach (Link link in Links)
             link.Mutate(random);
-        
+
         Utils.MutateValue(random, ref Bias);
     }
 
@@ -73,12 +80,20 @@ public class Neuron
         BiasGradient = network.ComputeFitnessDifference(originalFitness, ref Bias);
     }
 
-    public void ApplyGradients(double learnRate)
+    public void ApplyGradients(double gain)
     {
         foreach (Link link in Links)
-            link.ApplyGradients(learnRate);
+            link.ApplyGradients(gain);
 
         if (BiasGradient > 0.0)
-            Bias += BiasGradient * learnRate;
+            Bias += BiasGradient * gain;
+    }
+
+    public void LearnByBackpropagation(double errorFactor, double gain, double[] previousLayerOutputs)
+    {
+        for (int i = 0; i < InputCount; i++)
+            Links[i].Weight += gain * errorFactor * previousLayerOutputs[i];
+
+        LastErrorFactor = errorFactor;
     }
 }

@@ -11,7 +11,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonoGame.ImGuiNet", "MonoGa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonoGame.Utils", "MonoGame.Utils\MonoGame.Utils.csproj", "{DBB33A3A-3165-4A88-8C90-6F71EFCE44AB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Categories", "Categories\Categories.csproj", "{7BED4BDF-74D5-4F4B-8AC0-0242AD003B6A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BackpropagationExamples", "BackpropagationExamples\BackpropagationExamples.csproj", "{34B5D8BF-5BB3-40D7-9366-56A26CBE6D08}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{E07F1E68-A41A-4BCF-9725-B4D60704415D}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Projects", "Projects", "{6E35E39D-D10A-4801-8EC4-A9C4FD831A43}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,15 +39,22 @@ Global
 		{DBB33A3A-3165-4A88-8C90-6F71EFCE44AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DBB33A3A-3165-4A88-8C90-6F71EFCE44AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DBB33A3A-3165-4A88-8C90-6F71EFCE44AB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7BED4BDF-74D5-4F4B-8AC0-0242AD003B6A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7BED4BDF-74D5-4F4B-8AC0-0242AD003B6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7BED4BDF-74D5-4F4B-8AC0-0242AD003B6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7BED4BDF-74D5-4F4B-8AC0-0242AD003B6A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{34B5D8BF-5BB3-40D7-9366-56A26CBE6D08}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{34B5D8BF-5BB3-40D7-9366-56A26CBE6D08}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{34B5D8BF-5BB3-40D7-9366-56A26CBE6D08}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{34B5D8BF-5BB3-40D7-9366-56A26CBE6D08}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F6F8438F-80CC-45DB-BF44-655FBDE9CE33}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{2D769662-1437-44E3-93C7-3C7AAE2BC1CC} = {E07F1E68-A41A-4BCF-9725-B4D60704415D}
+		{809602C2-5EAD-4633-9FFB-F5B2A05A06BC} = {E07F1E68-A41A-4BCF-9725-B4D60704415D}
+		{DBB33A3A-3165-4A88-8C90-6F71EFCE44AB} = {E07F1E68-A41A-4BCF-9725-B4D60704415D}
+		{333FB3F1-933D-48CF-A09F-EB109CB71F9C} = {6E35E39D-D10A-4801-8EC4-A9C4FD831A43}
+		{34B5D8BF-5BB3-40D7-9366-56A26CBE6D08} = {6E35E39D-D10A-4801-8EC4-A9C4FD831A43}
 	EndGlobalSection
 EndGlobal

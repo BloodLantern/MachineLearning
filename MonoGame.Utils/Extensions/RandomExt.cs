@@ -10,4 +10,6 @@ public static class RandomExt
     /// <param name="random">The Random instance</param>
     /// <returns>A random Vector2</returns>
     public static Vector2 NextVector2(this Random random) => new(random.NextSingle(), random.NextSingle());
+
+    public static T Choose<T>(this Random random, params T[] choices) => choices[random.Next(choices.Length)];
 }
