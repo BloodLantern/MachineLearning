@@ -10,7 +10,7 @@ public class Neuron
     [XmlIgnore]
     public double Output;
 
-    public double Bias;
+    public double Bias = 0.1;
 
     [XmlIgnore]
     internal double BiasGradient;
@@ -34,9 +34,9 @@ public class Neuron
     {
         Links = new Link[previousNeurons.Length];
 
-        // Set the weights randomly between -1 and +1
+        // Set the weights randomly between -0.1 and +0.1
         for (int i = 0; i < previousNeurons.Length; i++)
-            Links[i] = new((random.NextDouble() * 2.0 - 1.0) / Math.Sqrt(previousNeurons.Length), previousNeurons[i], this);
+            Links[i] = new(random.NextDouble() * 0.2 - 0.1, previousNeurons[i], this);
     }
 
     public void CopyLinks(Link[] links)

@@ -314,7 +314,7 @@ public static class ImGuiUtils
     {
         bool result = false;
 
-        if (ImGui.BeginCombo("Logic gate", Enum.GetName(currentValue)))
+        if (ImGui.BeginCombo(label, Enum.GetName(currentValue)))
         {
             foreach (T gate in Enum.GetValues<T>())
             {

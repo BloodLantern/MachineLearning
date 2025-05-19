@@ -5,12 +5,15 @@ using System.Linq;
 namespace MachineLearning.Models.NeuralNetwork;
 
 [Serializable]
-public class Layer : IEnumerable
+public class Layer
 {
     public int NeuronCount => Neurons.Length;
+
     public double[] Outputs => Neurons.Select(n => n.Output).ToArray();
 
     public Neuron[] Neurons;
+
+    public int PreviousLayerNeuronCount => Neurons.First().InputCount;
 
     public Layer()
     {
@@ -76,6 +79,4 @@ public class Layer : IEnumerable
     }
 
     public Neuron this[int index] => Neurons[index];
-
-    public IEnumerator GetEnumerator() => Neurons.GetEnumerator();
 }

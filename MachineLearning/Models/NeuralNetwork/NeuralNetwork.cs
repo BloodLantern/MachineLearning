@@ -16,17 +16,18 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
 
     public int LayerCount => Layers.Length;
 
-    public ActivationFunction ActivationFunction = ActivationFunctions.Sigmoid;
-
-    [XmlElement("Layers", Order = 1)]
+    [XmlElement("Layers")]
     public Layer[] SerializedLayers
     {
         get => Layers[1..];
         set
         {
-            Layers = new Layer[Layers.Length];
+            if (value.Length < 1)
+                throw new ArgumentException("Invalid layer count");
 
-            Layers[0] = new(Layers[0].NeuronCount);
+            Layers = new Layer[value.Length - 1];
+
+            Layers[0] = new(value.First().PreviousLayerNeuronCount);
 
             for (int i = 0; i < value.Length; i++)
                 Layers[i + 1] = value[i];
@@ -127,19 +128,19 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].InitLinks(Layers[i - 1], random);
     }
 
-    private void CopyLinks(IReadOnlyList<Layer> layers)
+    private void CopyLinks(Layer[] layers)
     {
-        for (int i = 1; i < layers.Count; i++)
+        for (int i = 1; i < layers.Length; i++)
             Layers[i].CopyLinks(layers[i].Neurons);
     }
 
-    private void MergeLinks(IReadOnlyList<Layer> goodLayers, IReadOnlyList<Layer> badLayers)
+    private void MergeLinks(Layer[] goodLayers, Layer[] badLayers)
     {
-        for (int i = 1; i < goodLayers.Count; i++)
+        for (int i = 1; i < goodLayers.Length; i++)
             Layers[i].MergeLinks(goodLayers[i].Neurons, badLayers[i].Neurons);
     }
 
-    public double[] ComputeOutputs(params double[] inputs)
+    public double[] ComputeOutputs(double[] inputs, ActivationFunction hiddenLayersActivationFunction, ActivationFunction outputLayerActivationFunction)
     {
         if (inputs.Length != Layers[0].NeuronCount)
             throw new ArgumentException("Inputs array has the wrong size");
@@ -147,8 +148,10 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         for (int i = 0; i < inputs.Length; i++)
             Layers[0].Neurons[i].Output = inputs[i];
 
-        for (int i = 1; i < Layers.Length; i++)
-            Layers[i].FeedForward(ActivationFunction);
+        for (int i = 1; i < Layers.Length - 1; i++)
+            Layers[i].FeedForward(hiddenLayersActivationFunction);
+
+        OutputLayer.FeedForward(outputLayerActivationFunction);
 
         Neuron[] lastLayerNeurons = Layers[^1].Neurons;
         double[] result = new double[lastLayerNeurons.Length];
@@ -178,9 +181,9 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].ApplyGradients(gain);
     }
 
-    public void LearnByBackpropagation(double gain, double[] inputs, double[] expectedOutputs)
+    public void LearnByBackpropagation(double gain, double[] inputs, double[] expectedOutputs, ActivationFunction hiddenLayersActivationFunction, ActivationFunction outputLayerActivationFunction)
     {
-        ComputeOutputs(inputs);
+        ComputeOutputs(inputs, hiddenLayersActivationFunction, outputLayerActivationFunction);
 
         for (int i = 0; i < OutputLayer.NeuronCount; i++)
         {
@@ -200,7 +203,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
                 Neuron neuron = layer[j];
 
                 double sum = 0f;
-                foreach (Neuron nextNeuron in nextLayer)
+                foreach (Neuron nextNeuron in nextLayer.Neurons)
                     sum += nextNeuron.Weights[j] * nextNeuron.LastErrorFactor;
 
                 double errorFactor = neuron.Output * (1.0 - neuron.Output) * sum;

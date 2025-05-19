@@ -31,12 +31,12 @@ public class Application : Game
 
     private readonly Random random;
 
-    private const int ArrowCount = 200;
+    private const int ArrowCount = 50;
     private readonly Arrow[] arrows = new Arrow[ArrowCount];
     private readonly NeuralNetwork[] networks = new NeuralNetwork[ArrowCount];
 
-    private const int NetworkInputCount = 5;
-    private readonly int[] networkHiddenLayersCount = [5];
+    private const int NetworkInputCount = 2;
+    private readonly int[] networkHiddenLayersCount = [5, 3];
     private const int NetworkOutputCount = 1;
     private const double NetworkGain = 0.15;
 
@@ -62,8 +62,12 @@ public class Application : Game
     private float simulationFrameRate = 60f;
     private bool simulationSpeedUncapped;
 
+    private const int MaxFitnessGraphSize = 1000;
     private List<float> fitnessAverages = [];
     private List<float> fitnessMedians = [];
+
+    public ActivationFunctions.Type HiddenLayersActivationFunction = ActivationFunctions.Type.RectifiedLinearUnit;
+    public ActivationFunctions.Type OutputLayerActivationFunction = ActivationFunctions.Type.Sigmoid;
 
     public Application()
     {
@@ -149,6 +153,12 @@ public class Application : Game
             fitnessAverages.Add((float) networks.Average(n => n.Fitness));
             fitnessMedians.Add((float) networks[ArrowCount / 2].Fitness);
 
+            if (fitnessAverages.Count > MaxFitnessGraphSize)
+                fitnessAverages = fitnessAverages[^MaxFitnessGraphSize..];
+
+            if (fitnessMedians.Count > MaxFitnessGraphSize)
+                fitnessMedians = fitnessMedians[^MaxFitnessGraphSize..];
+
             if (TimeLeftBeforeReset <= 0f)
             {
                 ResetSimulation(true);
@@ -205,6 +215,9 @@ public class Application : Game
         ImGui.Begin("Simulation");
 
         ImGui.SeparatorText("Settings");
+
+        ImGuiUtils.ComboEnum("Network hidden layers activation function", ref HiddenLayersActivationFunction);
+        ImGuiUtils.ComboEnum("Network output layers activation function", ref OutputLayerActivationFunction);
 
         ImGui.DragFloat("Time between resets", ref newTimeBetweenResets, 0.1f, 1f);
         if (ImGui.Checkbox("Uncap FPS", ref simulationSpeedUncapped))
@@ -313,7 +326,16 @@ public class Application : Game
                     if (fitnessAverages.Count > 0)
                         pointer = ref CollectionsMarshal.AsSpan(fitnessAverages)[0];
 
-                    ImGui.PlotLines("##graph", ref pointer, fitnessAverages.Count, 0, string.Empty, float.MaxValue, float.MaxValue, ImGui.GetContentRegionAvail());
+                    ImGui.PlotLines(
+                        "##graph",
+                        ref pointer,
+                        fitnessAverages.Count,
+                        0,
+                        string.Empty,
+                        float.MaxValue,
+                        float.MaxValue,
+                        ImGui.GetContentRegionAvail()
+                    );
                     ImGui.EndTabItem();
                 }
 
@@ -322,7 +344,16 @@ public class Application : Game
                     if (fitnessMedians.Count > 0)
                         pointer = ref CollectionsMarshal.AsSpan(fitnessMedians)[0];
 
-                    ImGui.PlotLines("##graph", ref pointer, fitnessMedians.Count, 0, string.Empty, float.MaxValue, float.MaxValue, ImGui.GetContentRegionAvail());
+                    ImGui.PlotLines(
+                        "##graph",
+                        ref pointer,
+                        fitnessMedians.Count,
+                        0,
+                        string.Empty,
+                        float.MaxValue,
+                        float.MaxValue,
+                        ImGui.GetContentRegionAvail()
+                    );
                     ImGui.EndTabItem();
                 }
             }
@@ -358,9 +389,6 @@ public class Application : Game
         }
 
         Array.Sort(arrows);
-
-        fitnessAverages.Clear();
-        fitnessMedians.Clear();
 
         InitializeSimulation();
     }

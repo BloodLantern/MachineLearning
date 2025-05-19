@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Linq;
+using MachineLearning;
 using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -65,18 +67,35 @@ public class Arrow : IComparable<Arrow>
         double[] networkOutput = Network.ComputeOutputs(
             [
                 Angle / MathHelper.TwoPi,
-                Position.X / windowSize.X,
+                TargetAngle / MathHelper.TwoPi
+                /*Position.X / windowSize.X,
                 Position.Y / windowSize.Y,
                 targetPosition.X / windowSize.X,
-                targetPosition.Y / windowSize.Y
-            ]
+                targetPosition.Y / windowSize.Y*/
+            ],
+            ActivationFunctions.GetFromType(Application.Instance.HiddenLayersActivationFunction),
+            ActivationFunctions.GetFromType(Application.Instance.OutputLayerActivationFunction)
         );
 
-        return (float) networkOutput[0] * MaxAngleTilting;
+        return (float) networkOutput.Single() * MaxAngleTilting;
     }
 
     public void Render(SpriteBatch spriteBatch, Color tintColor)
-        => spriteBatch.Draw(Texture, new(Position.ToPoint(), Size.ToPoint()), null, tintColor, Angle, Texture.Bounds.Size.ToVector2() * 0.5f, SpriteEffects.None, 0f);
+    {
+        spriteBatch.Draw(
+            Texture,
+            new(
+                Position.ToPoint(),
+                Size.ToPoint()
+            ),
+            null,
+            tintColor,
+            Angle,
+            Texture.Bounds.Size.ToVector2() * 0.5f,
+            SpriteEffects.None,
+            0f
+        );
+    }
 
     public int CompareTo(Arrow other)
     {

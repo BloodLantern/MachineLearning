@@ -120,7 +120,18 @@ public class Application : Game
         }
 
         if (inputsModified)
-            output = neuralNetwork.ComputeOutputs(inputs.Select(Convert.ToDouble).ToArray()).Single();
+        {
+            output = neuralNetwork.ComputeOutputs(
+                    inputs.Select(
+                            Convert.ToDouble
+                        )
+                        .ToArray(),
+                    ActivationFunctions.Sigmoid,
+                    ActivationFunctions.Sigmoid
+                )
+                .Single();
+        }
+
         ImGui.Text($"Output: {output}");
 
         ImGui.Separator();
@@ -247,7 +258,13 @@ public class Application : Game
                 for (int j = 0; j < neuralNetwork.InputLayer.NeuronCount; j++)
                     inputList[j] = trainingSet[i][j];
 
-                neuralNetwork.LearnByBackpropagation(gain, inputList, outputList);
+                neuralNetwork.LearnByBackpropagation(
+                    gain,
+                    inputList,
+                    outputList,
+                    ActivationFunctions.Sigmoid,
+                    ActivationFunctions.Sigmoid
+                );
             }
         }
     }
