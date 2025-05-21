@@ -5,7 +5,7 @@ VisualStudioVersion = 17.7.34018.315
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MachineLearning", "MachineLearning\MachineLearning.csproj", "{2D769662-1437-44E3-93C7-3C7AAE2BC1CC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Arrows", "Arrows\Arrows.csproj", "{333FB3F1-933D-48CF-A09F-EB109CB71F9C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GeneticsExamples", "GeneticsExamples\GeneticsExamples.csproj", "{333FB3F1-933D-48CF-A09F-EB109CB71F9C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonoGame.ImGuiNet", "MonoGame.ImGuiNet\MonoGame.ImGuiNet\MonoGame.ImGuiNet.csproj", "{809602C2-5EAD-4633-9FFB-F5B2A05A06BC}"
 EndProject

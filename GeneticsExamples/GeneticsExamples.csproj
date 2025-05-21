@@ -7,6 +7,7 @@
     <TieredCompilation>false</TieredCompilation>
     <LangVersion>default</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Arrows</RootNamespace>
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationManifest>app.manifest</ApplicationManifest>
