@@ -15,7 +15,7 @@ public class Arrow : IComparable<Arrow>
     public static Vector2 Size = new(50f);
 
     private const float Velocity = 100f;
-    public const float MaxAngleTilting = 0.1f;
+    public const float MaxAngleTilting = MathHelper.TwoPi * 2f;
 
     public Vector2 Position { get; set; }
     public Vector2 TargetDirection { get; private set; }
@@ -47,7 +47,7 @@ public class Arrow : IComparable<Arrow>
     public void Update(float deltaTime, Vector2 targetPosition)
     {
         Network.UpdateFitness();
-        Angle += ComputeNextAngleDelta(targetPosition);
+        Angle += ComputeNextAngleDelta(targetPosition) * deltaTime;
 
         UpdatePosition(deltaTime);
     }
@@ -61,7 +61,7 @@ public class Arrow : IComparable<Arrow>
     public float ComputeNextAngleDelta(Vector2 targetPosition)
     {
         TargetDirection = (targetPosition - Position).NormalizedCopy();
-        TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X);
+        TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X) - MathHelper.Pi;
 
         Vector2 windowSize = Application.Instance.WindowSize.ToVector2();
         double[] networkOutput = Network.ComputeOutputs(
@@ -77,7 +77,7 @@ public class Arrow : IComparable<Arrow>
             ActivationFunctions.GetFromType(Application.Instance.OutputLayerActivationFunction)
         );
 
-        return (float) networkOutput.Single() * MaxAngleTilting;
+        return ((float) Math.Clamp(networkOutput.Single(), 0.0, 1.0) * 2f - 1f) * MaxAngleTilting;
     }
 
     public void Render(SpriteBatch spriteBatch, Color tintColor)

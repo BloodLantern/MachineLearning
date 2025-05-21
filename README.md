@@ -16,6 +16,8 @@ The `Projects` folder contains the [MonoGame](https://monogame.net/) projects th
   - A XOR gate
   - An AND gate
   - One in which you need to choose whether you are going to attack an enemy if you do or do not have life, ammo, and if the enemy is or isn't strong.
-- `GeneticsExamples` shows the usage of genetics and natural selection on a population of neural networks on two examples (WIP):
+- `GeneticsExamples` shows the usage of genetics and natural selection on a population of neural networks on two examples (currently doesn't work):
   - A XOR gate
   - A simulation in which the neural networks control the rotation of an arrow that needs to move towards a random point on the window
+
+Both projects make heavy use of ImGui windows to show the simulation state and settings.
