@@ -77,8 +77,6 @@ public class Application : Game
 
     private SimulationType simulationType = SimulationType.Xor;
 
-    private bool[] lastXorOutputs;
-
     public Application()
     {
         Instance = this;
@@ -179,13 +177,8 @@ public class Application : Game
             switch (simulationType)
             {
                 case SimulationType.Xor:
-                    for (int i = 0; i < networks.Length; i++)
-                    {
-                        NeuralNetwork network = networks[i];
+                    foreach (NeuralNetwork network in networks)
                         network.UpdateFitness();
-                        lastXorOutputs[i] = Convert.ToBoolean(ComputeNetworkXor(network, random.NextBoolean(), random.NextBoolean()));
-                    }
-
                     break;
 
                 case SimulationType.Arrows:
@@ -341,11 +334,11 @@ public class Application : Game
         if (running)
             ImGui.EndDisabled();
 
-        /*if (ImGui.Button("Save best"))
+        if (ImGui.Button("Save best"))
             SaveBestNetwork();
 
         if (ImGui.Button("Load save"))
-            LoadSavedNetwork();*/
+            LoadSavedNetwork();
 
         ImGui.Checkbox("Show fitness graphs", ref showFitnessGraphs);
 
@@ -537,7 +530,6 @@ public class Application : Game
         {
             case SimulationType.Xor:
                 InitializeNetworks(networkCount, 2, 1);
-                lastXorOutputs = new bool[networkCount];
                 break;
 
             case SimulationType.Arrows:

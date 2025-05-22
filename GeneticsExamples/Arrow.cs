@@ -63,15 +63,10 @@ public class Arrow : IComparable<Arrow>
         TargetDirection = (targetPosition - Position).NormalizedCopy();
         TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X) - MathHelper.Pi;
 
-        Vector2 windowSize = Application.Instance.WindowSize.ToVector2();
         double[] networkOutput = Network.ComputeOutputs(
             [
                 Angle / MathHelper.TwoPi,
                 TargetAngle / MathHelper.TwoPi
-                /*Position.X / windowSize.X,
-                Position.Y / windowSize.Y,
-                targetPosition.X / windowSize.X,
-                targetPosition.Y / windowSize.Y*/
             ],
             ActivationFunctions.GetFromType(Application.Instance.HiddenLayersActivationFunction),
             ActivationFunctions.GetFromType(Application.Instance.OutputLayerActivationFunction)
