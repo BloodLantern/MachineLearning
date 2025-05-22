@@ -32,11 +32,13 @@ public class Neuron
 
     public void InitLinks(Neuron[] previousNeurons, Random random)
     {
+        const double BaseWeightRange = 1.0;
+
         Links = new Link[previousNeurons.Length];
 
-        // Set the weights randomly between -0.1 and +0.1
+        // Set the weights randomly between -BaseWeightRange and BaseWeightRange
         for (int i = 0; i < previousNeurons.Length; i++)
-            Links[i] = new(random.NextDouble() * 0.2 - 0.1, previousNeurons[i], this);
+            Links[i] = new(random.NextDouble() * BaseWeightRange * 2.0 - BaseWeightRange, previousNeurons[i], this);
     }
 
     public void CopyLinks(Link[] links)

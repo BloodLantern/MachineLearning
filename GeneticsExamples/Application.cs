@@ -37,14 +37,14 @@ public class Application : Game
 
     private readonly Random random;
 
-    private int networkCount = 50;
+    private int networkCount = 100;
     private Arrow[] arrows;
     private NeuralNetwork[] networks;
 
     private const int ArrowNetworkInputCount = 2;
     private readonly int[] networkHiddenLayersCount = [5, 3];
     private const int ArrowNetworkOutputCount = 1;
-    private const double NetworkGain = 0.3;
+    private const double NetworkGain = 0.5;
 
     private const string SavePath = "network_save.xml";
 
@@ -55,10 +55,10 @@ public class Application : Game
 
     private Vector2 targetPosition;
 
-    private float newTimeBetweenResets = 30f;
+    private float newTimeBetweenResets = 0.01f;
     public float TimeBetweenResets { get; private set; }
     public float TimeLeftBeforeReset { get; private set; }
-    private int currentIteration;
+    private int currentIteration = 1;
 
     private bool bestArrowSelected;
     private bool showFitnessGraphs;
@@ -72,7 +72,7 @@ public class Application : Game
     private List<float> fitnessAverages = [];
     private List<float> fitnessMedians = [];
 
-    public ActivationFunctions.Type HiddenLayersActivationFunction = ActivationFunctions.Type.RectifiedLinearUnit;
+    public ActivationFunctions.Type HiddenLayersActivationFunction = ActivationFunctions.Type.Sigmoid;
     public ActivationFunctions.Type OutputLayerActivationFunction = ActivationFunctions.Type.Sigmoid;
 
     private SimulationType simulationType = SimulationType.Xor;
@@ -463,13 +463,15 @@ public class Application : Game
 
     private void ResetSimulation(bool evolve)
     {
+        Array.Sort(networks);
+
         if (evolve)
             EvolveSimulation();
 
         for (int i = 0; i < networkCount; i++)
         {
             networks[i].Rank = i;
-            networks[i].Fitness = 0.0;
+            networks[i].UpdateFitness();
         }
 
         if (simulationType == SimulationType.Arrows)
@@ -491,29 +493,30 @@ public class Application : Game
             Array.Sort(arrows);
         }
 
-        InitializeSimulation();
+        TimeBetweenResets = newTimeBetweenResets;
+        TimeLeftBeforeReset = newTimeBetweenResets;
+
+        currentIteration++;
     }
 
     private void EvolveSimulation()
     {
-        Array.Sort(networks);
-
         foreach (NeuralNetwork network in networks)
             network.LearnByFitness(NetworkGain);
 
         // Mutate the worst 50%
-        const float MutatedArrowRatio = 0.5f;
-        int mutatedArrowCount = (int) (networkCount * MutatedArrowRatio);
-        int nonMutatedArrowCount = networkCount - mutatedArrowCount;
-        for (int i = 0; i < mutatedArrowCount; i++)
+        const float MutatedNetworkRatio = 0.5f;
+        int mutatedNetworkCount = (int) (networkCount * MutatedNetworkRatio);
+        int nonMutatedNetworkCount = networkCount - mutatedNetworkCount;
+        for (int i = 0; i < mutatedNetworkCount; i++)
         {
-            ref NeuralNetwork badNetwork = ref networks[nonMutatedArrowCount + i];
+            ref NeuralNetwork badNetwork = ref networks[nonMutatedNetworkCount + i];
 
             badNetwork = new(networks[i], badNetwork);
             badNetwork.Mutate();
         }
 
-        // Mutate again every network that has a negative fitness
+        // Mutate again every network that has a negative fitness (only the case for the arrow simulation)
         foreach (NeuralNetwork network in networks)
         {
             if (network.Fitness < 0.0)
@@ -523,9 +526,6 @@ public class Application : Game
 
     private void InitializeSimulation()
     {
-        TimeBetweenResets = newTimeBetweenResets;
-        TimeLeftBeforeReset = newTimeBetweenResets;
-
         switch (simulationType)
         {
             case SimulationType.Xor:
@@ -543,8 +543,6 @@ public class Application : Game
 
             default: throw new ArgumentOutOfRangeException();
         }
-
-        currentIteration++;
     }
 
     private void SaveBestNetwork() => arrows[0].Network.Save(SavePath);
@@ -561,21 +559,33 @@ public class Application : Game
 
     private Vector2 GetRandomArrowSpawn() => random.NextVector2() * ((Point2) arrowSpawnBounds.Size - arrowSpawnBounds.Position) + arrowSpawnBounds.Position;
 
+    private readonly bool[][] possibleXorInputs =
+    [
+        [false, false],
+        [true, false],
+        [false, true],
+        [true, true]
+    ];
+
     private double ComputeFitness(NeuralNetwork network)
     {
         switch (simulationType)
         {
             case SimulationType.Xor:
-                bool lhs = random.NextBoolean();
-                bool rhs = random.NextBoolean();
+                double sum = 0.0;
 
-                double output = ComputeNetworkXor(network, lhs, rhs);
-                double expectedOutput = Convert.ToDouble(XorGate(lhs, rhs));
+                foreach (bool[] possibleInput in possibleXorInputs)
+                {
+                    double output = ComputeNetworkXor(network, possibleInput[0], possibleInput[1]);
+                    double expectedOutput = Convert.ToDouble(XorGate(possibleInput[0], possibleInput[1]));
 
-                double difference = Math.Abs(output - expectedOutput);
-                double factor = (1.0 - difference) * 10.0;
+                    double difference = Math.Abs(output - expectedOutput);
+                    double factor = (0.5 - difference) * 10.0; // between -5 and 5
 
-                return factor * factor * factor;
+                    sum += factor * factor * factor;
+                }
+
+                return sum;
 
             case SimulationType.Arrows:
                 Arrow arrow = arrows[network.Rank];
