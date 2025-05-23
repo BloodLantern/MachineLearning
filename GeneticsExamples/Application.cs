@@ -44,7 +44,7 @@ public class Application : Game
     private const int ArrowNetworkInputCount = 2;
     private readonly int[] networkHiddenLayersCount = [5, 3];
     private const int ArrowNetworkOutputCount = 1;
-    private const double NetworkGain = 0.5;
+    private float networkGain = 0.5f;
 
     private const string SavePath = "network_save.xml";
 
@@ -72,8 +72,8 @@ public class Application : Game
     private List<float> fitnessAverages = [];
     private List<float> fitnessMedians = [];
 
-    public ActivationFunctions.Type HiddenLayersActivationFunction = ActivationFunctions.Type.Sigmoid;
-    public ActivationFunctions.Type OutputLayerActivationFunction = ActivationFunctions.Type.Sigmoid;
+    public ActivationFunctions.Type HiddenLayersActivationFunction = ActivationFunctions.Type.HyperbolicTangent;
+    public ActivationFunctions.Type OutputLayerActivationFunction = ActivationFunctions.Type.HyperbolicTangent;
 
     private SimulationType simulationType = SimulationType.Xor;
 
@@ -286,6 +286,8 @@ public class Application : Game
 
         ImGuiUtils.ComboEnum("Network hidden layers activation function", ref HiddenLayersActivationFunction);
         ImGuiUtils.ComboEnum("Network output layers activation function", ref OutputLayerActivationFunction);
+
+        ImGui.SliderFloat("Network gain", ref networkGain, 0f, 1f);
 
         if (ImGui.DragFloat("Time between resets", ref newTimeBetweenResets, 0.1f, 1f))
             TimeLeftBeforeReset = MathF.Min(TimeLeftBeforeReset, newTimeBetweenResets);
@@ -502,7 +504,7 @@ public class Application : Game
     private void EvolveSimulation()
     {
         foreach (NeuralNetwork network in networks)
-            network.LearnByFitness(NetworkGain);
+            network.LearnByFitness(networkGain);
 
         // Mutate the worst 50%
         const float MutatedNetworkRatio = 0.5f;
