@@ -1,6 +1,4 @@
-﻿
-using Arrows;
-using MachineLearning;
+﻿using Arrows;
 
-using var game = new Application();
+using Application game = new();
 game.Run();

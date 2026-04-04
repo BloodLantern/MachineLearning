@@ -11,37 +11,44 @@ namespace Arrows;
 
 public class Arrow : IComparable<Arrow>
 {
-    public static Texture2D Texture;
-    public static Vector2 Size = new(50f);
-
     private const float Velocity = 100f;
     public const float MaxAngleTilting = MathHelper.TwoPi * 2f;
+    public static Texture2D Texture;
+    public static Vector2 Size = new(50f);
+    public readonly int LastRank;
+
+    public readonly NeuralNetwork Network;
 
     public Vector2 Position { get; set; }
     public Vector2 TargetDirection { get; private set; }
 
-    private float angle;
     public float Angle
     {
-        get => angle;
-        set => angle = Calc.ClampRadiantAngle(value);
-    }
-    private float targetAngle;
-    public float TargetAngle
-    {
-        get => targetAngle;
-        private set => targetAngle = Calc.ClampRadiantAngle(value);
+        get;
+        set => field = Calc.ClampRadiantAngle(value);
     }
 
-    public readonly NeuralNetwork Network;
+    public float TargetAngle
+    {
+        get;
+        private set => field = Calc.ClampRadiantAngle(value);
+    }
+
     public int Rank => Network.Rank;
-    public readonly int LastRank;
 
     public Arrow(Vector2 position, NeuralNetwork network, int lastRank)
     {
         Position = position;
         Network = network;
         LastRank = lastRank;
+    }
+
+    public int CompareTo(Arrow other)
+    {
+        if (Rank < other.Rank)
+            return -1;
+
+        return Rank > other.Rank ? 1 : 0;
     }
 
     public void Update(float deltaTime, Vector2 targetPosition)
@@ -75,28 +82,17 @@ public class Arrow : IComparable<Arrow>
         return ((float) Math.Clamp(networkOutput.Single(), 0.0, 1.0) * 2f - 1f) * MaxAngleTilting;
     }
 
-    public void Render(SpriteBatch spriteBatch, Color tintColor)
-    {
-        spriteBatch.Draw(
-            Texture,
-            new(
-                Position.ToPoint(),
-                Size.ToPoint()
-            ),
-            null,
-            tintColor,
-            Angle,
-            Texture.Bounds.Size.ToVector2() * 0.5f,
-            SpriteEffects.None,
-            0f
-        );
-    }
-
-    public int CompareTo(Arrow other)
-    {
-        if (Rank < other.Rank)
-            return -1;
-
-        return Rank > other.Rank ? 1 : 0;
-    }
+    public void Render(SpriteBatch spriteBatch, Color tintColor) => spriteBatch.Draw(
+        Texture,
+        new(
+            Position.ToPoint(),
+            Size.ToPoint()
+        ),
+        null,
+        tintColor,
+        Angle,
+        Texture.Bounds.Size.ToVector2() * 0.5f,
+        SpriteEffects.None,
+        0f
+    );
 }
