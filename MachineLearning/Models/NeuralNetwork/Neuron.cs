@@ -7,15 +7,15 @@ namespace MachineLearning.Models.NeuralNetwork;
 [Serializable]
 public class Neuron
 {
-    [XmlIgnore]
-    public double Output;
-
     public double Bias = 0.1;
 
     [XmlIgnore]
     internal double BiasGradient;
 
     public Link[] Links;
+
+    [XmlIgnore]
+    public double Output;
 
     public int InputCount => Links.Length;
 
@@ -24,9 +24,7 @@ public class Neuron
     [XmlIgnore]
     public double LastErrorFactor { get; private set; }
 
-    public Neuron()
-    {
-    }
+    public Neuron() { }
 
     public Neuron(double output) => Output = output;
 

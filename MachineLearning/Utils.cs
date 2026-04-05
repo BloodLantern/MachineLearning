@@ -3,7 +3,6 @@ using System.IO;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
-using MachineLearning.Models.NeuralNetwork;
 
 namespace MachineLearning;
 
@@ -30,15 +29,19 @@ public static class Utils
             ns = new();
             ns.Add("", ""); // Disable the xmlns:xsi and xmlns:xsd lines.
         }
+
         using StringWriter textWriter = new();
         XmlWriterSettings settings = new() { Indent = true, IndentChars = "    ", Encoding = Encoding.Default }; // For cosmetic purposes.
         using (XmlWriter xmlWriter = XmlWriter.Create(textWriter, settings))
+        {
             (serializer ?? new XmlSerializer(obj.GetType())).Serialize(xmlWriter, obj, ns);
+        }
+
         return textWriter.ToString();
     }
 
     /// <summary>
-    /// Mutates a value using the given <see cref="Random"/> instance, returning whether the value changed.
+    /// Mutates a value using the given <see cref="Random" /> instance, returning whether the value changed.
     /// </summary>
     /// <param name="random">The Random instance to use.</param>
     /// <param name="value">The value to mutate.</param>
@@ -49,20 +52,14 @@ public static class Utils
 
         switch (random.NextDouble() * 1000.0)
         {
-            case <= 2.0:
-                value *= -1.0;
-                break;
-            case <= 4.0:
-                value = random.NextDouble() - 0.5;
-                break;
-            case <= 6.0:
-                value *= random.NextDouble() + 1.0;
-                break;
-            case <= 8.0:
-                value *= random.NextDouble();
-                break;
+            case <= 2.0: value *= -1.0; break;
+            case <= 4.0: value = random.NextDouble() - 0.5; break;
+            case <= 6.0: value *= random.NextDouble() + 1.0; break;
+            case <= 8.0: value *= random.NextDouble(); break;
         }
 
         return Math.Abs(oldValue - value) != 0.0;
     }
+
+    public static float BoolToFloat(bool value) => value ? 1f : 0f;
 }

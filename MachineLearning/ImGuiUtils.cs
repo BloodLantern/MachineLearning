@@ -12,6 +12,9 @@ namespace MachineLearning;
 
 public static class ImGuiUtils
 {
+    private static bool mouseHoverLink;
+    private static readonly Color GoodLinkColor = Color.Green;
+    private static readonly Color BadLinkColor = Color.Red;
     public static void GridPlotting(string label, ref Vector2 value) => GridPlotting(label, ref value, -1f, 1f);
 
     public static void GridPlotting(string label, ref Vector2 value, float min, float max)
@@ -121,7 +124,12 @@ public static class ImGuiUtils
         drawList.AddLine(p0 + size * 0.5f, position, Color.Red.PackedValue);
         NVector2 normal = value.Normal().ToNumerics();
         NVector2 offset = -value.ToNumerics() * size.Y * 0.1f;
-        drawList.AddTriangleFilled(position + normal * size.X * 0.1f + offset, position - normal * size.X * 0.1f + offset, position, Color.Red.PackedValue);
+        drawList.AddTriangleFilled(
+            position + normal * size.X * 0.1f + offset,
+            position - normal * size.X * 0.1f + offset,
+            position,
+            Color.Red.PackedValue
+        );
         ImGui.PopClipRect();
 
         value.Y *= -1; // In 2D, the Y axis goes downwards
@@ -185,12 +193,22 @@ public static class ImGuiUtils
         drawList.AddLine(p0 + size * 0.5f, expectedPosition, (Color.Red * 0.5f).PackedValue);
         NVector2 expectedNormal = expected.Normal().ToNumerics();
         NVector2 expectedOffset = -expected.ToNumerics() * size.Y * 0.1f;
-        drawList.AddTriangleFilled(expectedPosition + expectedNormal * size.X * 0.1f + expectedOffset, expectedPosition - expectedNormal * size.X * 0.1f + expectedOffset, expectedPosition, (Color.Red * 0.5f).PackedValue);
+        drawList.AddTriangleFilled(
+            expectedPosition + expectedNormal * size.X * 0.1f + expectedOffset,
+            expectedPosition - expectedNormal * size.X * 0.1f + expectedOffset,
+            expectedPosition,
+            (Color.Red * 0.5f).PackedValue
+        );
 
         drawList.AddLine(p0 + size * 0.5f, valuePosition, Color.Red.PackedValue);
         NVector2 valueNormal = value.Normal().ToNumerics();
         NVector2 valueOffset = -value.ToNumerics() * size.Y * 0.1f;
-        drawList.AddTriangleFilled(valuePosition + valueNormal * size.X * 0.1f + valueOffset, valuePosition - valueNormal * size.X * 0.1f + valueOffset, valuePosition, Color.Red.PackedValue);
+        drawList.AddTriangleFilled(
+            valuePosition + valueNormal * size.X * 0.1f + valueOffset,
+            valuePosition - valueNormal * size.X * 0.1f + valueOffset,
+            valuePosition,
+            Color.Red.PackedValue
+        );
         ImGui.PopClipRect();
 
         value.Y *= -1; // In 2D, the Y axis goes downwards
@@ -198,9 +216,6 @@ public static class ImGuiUtils
 
     public static void DisplayNeuralNetwork(NeuralNetwork network) => DisplayNeuralNetwork(network, new(600f, 600f));
 
-    private static bool mouseHoverLink;
-    private static readonly Color GoodLinkColor = Color.Green;
-    private static readonly Color BadLinkColor = Color.Red;
     public static void DisplayNeuralNetwork(NeuralNetwork network, Vector2 givenSize)
     {
         NVector2 size = givenSize.ToNumerics();
@@ -248,7 +263,10 @@ public static class ImGuiUtils
                 {
                     Link link = neuron.Links[k];
                     float previousNeuronPositionY = previousNeuronSpacing * k + previousNeuronOffsetY;
-                    NVector2 previousNeuronPosition = basePosition + new NVector2(previousLayerPositionX + layerWidth * 0.5f, previousNeuronPositionY + layerWidth * 0.5f);
+                    NVector2 previousNeuronPosition = basePosition + new NVector2(
+                        previousLayerPositionX + layerWidth * 0.5f,
+                        previousNeuronPositionY + layerWidth * 0.5f
+                    );
 
                     if (Calc.LineIntersects(previousNeuronPosition, neuronPosition, mousePosition))
                     {
@@ -280,7 +298,11 @@ public static class ImGuiUtils
 
             string text = hoveredLink.Weight.ToString("F2", CultureInfo.InvariantCulture);
             NVector2 textSize = ImGui.CalcTextSize(text);
-            drawList.AddText(hoveredLinkOriginPosition + (hoveredLinkDestinationPosition - hoveredLinkOriginPosition) * 0.5f - textSize * 0.5f, Color.White.PackedValue, text);
+            drawList.AddText(
+                hoveredLinkOriginPosition + (hoveredLinkDestinationPosition - hoveredLinkOriginPosition) * 0.5f - textSize * 0.5f,
+                Color.White.PackedValue,
+                text
+            );
         }
 
         for (int i = 0; i < layers; i++)

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml.Serialization;
@@ -11,8 +10,22 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
 {
     public delegate double FitnessComputation(NeuralNetwork network);
 
+    public static NeuralNetwork Load(string path) => Utils.LoadFromXml<NeuralNetwork>(File.ReadAllText(path));
+
+    [XmlIgnore]
+    private readonly Random random;
+
+    [XmlIgnore]
+    public double Fitness;
+
+    [XmlIgnore]
+    public FitnessComputation FitnessFunction;
+
     [XmlIgnore]
     public Layer[] Layers;
+
+    [XmlIgnore]
+    public int Rank;
 
     public int LayerCount => Layers.Length;
 
@@ -42,24 +55,10 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
 
     public double[] Outputs => OutputLayer.Outputs;
 
-    [XmlIgnore]
-    public double Fitness;
-
-    [XmlIgnore]
-    public FitnessComputation FitnessFunction;
-
-    [XmlIgnore]
-    public int Rank;
-
-    [XmlIgnore]
-    private readonly Random random;
-
     public NeuralNetwork() => random = new();
 
     public NeuralNetwork(Random random, int inputCount, int outputCount, params int[] hiddenLayerSizes)
-        : this(random, null, inputCount, outputCount, hiddenLayerSizes)
-    {
-    }
+        : this(random, null, inputCount, outputCount, hiddenLayerSizes) { }
 
     public NeuralNetwork(Random random, FitnessComputation fitnessFunction, int inputCount, int outputCount, params int[] hiddenLayerSizes)
     {
@@ -99,8 +98,11 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         random = badNetwork.random;
         FitnessFunction = badNetwork.FitnessFunction;
 
-        InitLayers(goodNetwork.InputLayer.NeuronCount, goodNetwork.OutputLayer.NeuronCount,
-            goodNetwork.HiddenLayers.Select(l => l.NeuronCount).ToArray());
+        InitLayers(
+            goodNetwork.InputLayer.NeuronCount,
+            goodNetwork.OutputLayer.NeuronCount,
+            goodNetwork.HiddenLayers.Select(l => l.NeuronCount).ToArray()
+        );
         InitNeurons();
         InitLinks();
         MergeLinks(goodNetwork.Layers, badNetwork.Layers);
@@ -140,7 +142,9 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].MergeLinks(goodLayers[i].Neurons, badLayers[i].Neurons);
     }
 
-    public double[] ComputeOutputs(double[] inputs, ActivationFunction hiddenLayersActivationFunction, ActivationFunction outputLayerActivationFunction)
+    public double[] ComputeOutputs(
+        double[] inputs, ActivationFunction hiddenLayersActivationFunction, ActivationFunction outputLayerActivationFunction
+    )
     {
         if (inputs.Length != Layers[0].NeuronCount)
             throw new ArgumentException("Inputs array has the wrong size");
@@ -181,7 +185,10 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].ApplyGradients(gain);
     }
 
-    public void LearnByBackpropagation(double gain, double[] inputs, double[] expectedOutputs, ActivationFunction hiddenLayersActivationFunction, ActivationFunction outputLayerActivationFunction)
+    public void LearnByBackpropagation(
+        double gain, double[] inputs, double[] expectedOutputs, ActivationFunction hiddenLayersActivationFunction,
+        ActivationFunction outputLayerActivationFunction
+    )
     {
         ComputeOutputs(inputs, hiddenLayersActivationFunction, outputLayerActivationFunction);
 
@@ -241,20 +248,9 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         return fitnessDiff / Offset;
     }
 
-    public void UpdateFitness() => Fitness = ComputeFitness();
+    public void UpdateFitness() => Fitness += ComputeFitness();
 
     public void Save(string path) => File.WriteAllText(path, Utils.GetXml(this, true));
 
-    public static NeuralNetwork Load(string path) => Utils.LoadFromXml<NeuralNetwork>(File.ReadAllText(path));
-
-    public int CompareTo(NeuralNetwork other)
-    {
-        if (other == null)
-            return -1;
-
-        if (Fitness > other.Fitness)
-            return -1;
-
-        return Fitness < other.Fitness ? 1 : 0;
-    }
+    public int CompareTo(NeuralNetwork other) => other == null ? throw new ArgumentNullException(nameof(other)) : -Fitness.CompareTo(other.Fitness);
 }

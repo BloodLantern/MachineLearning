@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Linq;
 
 namespace MachineLearning.Models.NeuralNetwork;
@@ -7,17 +6,16 @@ namespace MachineLearning.Models.NeuralNetwork;
 [Serializable]
 public class Layer
 {
+    public Neuron[] Neurons;
     public int NeuronCount => Neurons.Length;
 
     public double[] Outputs => Neurons.Select(n => n.Output).ToArray();
 
-    public Neuron[] Neurons;
-
     public int PreviousLayerNeuronCount => Neurons.First().InputCount;
 
-    public Layer()
-    {
-    }
+    public Neuron this[int index] => Neurons[index];
+
+    public Layer() { }
 
     public Layer(int size)
     {
@@ -77,6 +75,4 @@ public class Layer
         foreach (Neuron neuron in Neurons)
             neuron.ApplyGradients(gain);
     }
-
-    public Neuron this[int index] => Neurons[index];
 }

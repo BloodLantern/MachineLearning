@@ -6,23 +6,22 @@ namespace MachineLearning.Models.NeuralNetwork;
 [Serializable]
 public class Link
 {
-    [XmlAttribute]
-    public double Weight;
-
-    [XmlIgnore]
-    internal double WeightGradient;
-    
-    [XmlIgnore]
-    public Neuron Origin;
     [XmlIgnore]
     public Neuron Destination;
 
     [XmlIgnore]
     public bool Mutated;
 
-    public Link()
-    {
-    }
+    [XmlIgnore]
+    public Neuron Origin;
+
+    [XmlAttribute]
+    public double Weight;
+
+    [XmlIgnore]
+    internal double WeightGradient;
+
+    public Link() { }
 
     public Link(double weight, Neuron origin, Neuron destination)
     {
@@ -37,7 +36,8 @@ public class Link
 
     public void Mutate(Random random) => Mutated = Utils.MutateValue(random, ref Weight);
 
-    public void Learn(NeuralNetwork network, double originalFitness) => WeightGradient = network.ComputeFitnessDifference(originalFitness, ref Weight);
+    public void Learn(NeuralNetwork network, double originalFitness)
+        => WeightGradient = network.ComputeFitnessDifference(originalFitness, ref Weight);
 
     public void ApplyGradients(double learnRate)
     {

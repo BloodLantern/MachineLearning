@@ -5,14 +5,14 @@ using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
-using MonoGame.Utils;
+using MonoGame.Utils.Extensions;
 
 namespace Arrows;
 
 public class Arrow : IComparable<Arrow>
 {
-    private const float Velocity = 100f;
-    public const float MaxAngleTilting = MathHelper.TwoPi * 2f;
+    private const float Speed = 100f;
+    public const float MaxAngleTilting = MathHelper.TwoPi * 4f;
     public static Texture2D Texture;
     public static Vector2 Size = new(50f);
     public readonly int LastRank;
@@ -20,19 +20,14 @@ public class Arrow : IComparable<Arrow>
     public readonly NeuralNetwork Network;
 
     public Vector2 Position { get; set; }
+
+    public Vector2 Direction { get; private set; }
+
     public Vector2 TargetDirection { get; private set; }
 
-    public float Angle
-    {
-        get;
-        set => field = Calc.ClampRadiantAngle(value);
-    }
+    public float Angle { get; set; }
 
-    public float TargetAngle
-    {
-        get;
-        private set => field = Calc.ClampRadiantAngle(value);
-    }
+    public float TargetAngle { get; private set; }
 
     public int Rank => Network.Rank;
 
@@ -43,51 +38,43 @@ public class Arrow : IComparable<Arrow>
         LastRank = lastRank;
     }
 
-    public int CompareTo(Arrow other)
-    {
-        if (Rank < other.Rank)
-            return -1;
-
-        return Rank > other.Rank ? 1 : 0;
-    }
-
     public void Update(float deltaTime, Vector2 targetPosition)
     {
-        Network.UpdateFitness();
-        Angle += ComputeNextAngleDelta(targetPosition) * deltaTime;
-
         UpdatePosition(deltaTime);
+
+        Angle += ComputeNextAngleDelta(targetPosition) * deltaTime;
+        Direction = Vector2.FromAngle(Angle);
+
+        Network.UpdateFitness();
     }
 
     private void UpdatePosition(float deltaTime)
     {
-        Position += new Vector2(MathF.Cos(Angle) * Velocity, MathF.Sin(Angle) * Velocity) * deltaTime;
-        Position = Vector2.Clamp(Position, Vector2.Zero, Application.Instance.WindowSize.ToVector2());
+        Position += Direction * (Speed * deltaTime);
+        Position = Vector2.Clamp(Position, Vector2.Zero, Application.Instance.WindowSize);
     }
 
     public float ComputeNextAngleDelta(Vector2 targetPosition)
     {
-        TargetDirection = (targetPosition - Position).NormalizedCopy();
+        Vector2 difference = targetPosition - Position;
+        TargetDirection = difference.NormalizedCopy();
         TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X) - MathHelper.Pi;
 
-        double[] networkOutput = Network.ComputeOutputs(
+        double[] networkOutputs = Network.ComputeOutputs(
             [
-                Angle / MathHelper.TwoPi,
-                TargetAngle / MathHelper.TwoPi
+                (Vector2.Dot(Direction, TargetDirection) + 1f) * 0.5f, // Difference with the target angle
+                Utils.BoolToFloat(difference.LengthSquared() < Application.FitnessBonusMaxDistanceSquared) // Distance to the target
             ],
             ActivationFunctions.GetFromType(Application.Instance.HiddenLayersActivationFunction),
             ActivationFunctions.GetFromType(Application.Instance.OutputLayerActivationFunction)
         );
 
-        return ((float) Math.Clamp(networkOutput.Single(), 0.0, 1.0) * 2f - 1f) * MaxAngleTilting;
+        return (float) Math.Clamp(networkOutputs.Single(), -1.0, 1.0) * MaxAngleTilting;
     }
 
     public void Render(SpriteBatch spriteBatch, Color tintColor) => spriteBatch.Draw(
         Texture,
-        new(
-            Position.ToPoint(),
-            Size.ToPoint()
-        ),
+        new(Position.ToPoint(), Size.ToPoint()),
         null,
         tintColor,
         Angle,
@@ -95,4 +82,6 @@ public class Arrow : IComparable<Arrow>
         SpriteEffects.None,
         0f
     );
+
+    public int CompareTo(Arrow other) => Rank.CompareTo(other.Rank);
 }
