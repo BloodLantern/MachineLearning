@@ -1,5 +1,4 @@
 ﻿using System;
-using MonoGame.Utils.Extensions;
 
 namespace MachineLearning;
 
@@ -10,7 +9,7 @@ public static class ActivationFunctions
 {
     public static ActivationFunction GetRandom() => GetRandom(Random.Shared);
 
-    public static ActivationFunction GetRandom(Random random) => random.Choose(Step, Sigmoid, HyperbolicTangent, RectifiedLinearUnit);
+    public static ActivationFunction GetRandom(Random random) => Functions[random.Next(Functions.Length)];
 
     public static ActivationFunction GetFromType(ActivationFunctionType type) => type switch
     {
@@ -34,11 +33,13 @@ public static class ActivationFunctions
         throw new ArgumentException(null, nameof(activationFunction));
     }
 
-    public static ActivationFunction Step => value => value < 0.0 ? 0.0 : 1.0;
+    public static readonly ActivationFunction Step = value => value < 0.0 ? 0.0 : 1.0;
 
-    public static ActivationFunction Sigmoid => value => 1.0 / (1.0 + Math.Exp(-value));
+    public static readonly ActivationFunction Sigmoid = value => 1.0 / (1.0 + Math.Exp(-value));
 
-    public static ActivationFunction HyperbolicTangent => Math.Tanh;
+    public static readonly ActivationFunction HyperbolicTangent = Math.Tanh;
 
-    public static ActivationFunction RectifiedLinearUnit => value => Math.Max(0, value);
+    public static readonly ActivationFunction RectifiedLinearUnit = value => Math.Max(0, value);
+
+    public static readonly ActivationFunction[] Functions = [Step, Sigmoid, HyperbolicTangent, RectifiedLinearUnit];
 }
