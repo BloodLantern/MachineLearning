@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MachineLearning\MachineLearning.csproj" />
+    <ProjectReference Include="..\MonoGame.Utils\MonoGame.Utils.csproj" />
   </ItemGroup>
 
 </Project>
