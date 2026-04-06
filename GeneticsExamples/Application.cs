@@ -19,19 +19,19 @@ namespace Arrows;
 
 public class Application : Game
 {
-    private const int NetworkInputCount = 2;
+    private const int NetworkInputCount = 3;
     private const int NetworkOutputCount = 1;
 
     private const string SavePath = "network_save.xml";
 
-    private const int MaxFitnessGraphSize = 1000;
+    private const int MaxFitnessGraphSize = 100;
 
     public static Application Instance;
 
     private readonly RectangleF arrowSpawnBounds;
 
     private readonly GraphicsDeviceManager graphics;
-    private readonly int[] networkHiddenNeuronsCount = [5, 3];
+    private readonly int[] networkHiddenNeuronsCount = [10, 10];
 
     private readonly Random random;
     private Arrow[] arrows;
@@ -41,14 +41,14 @@ public class Application : Game
     private List<float> fitnessAverages = [];
     private List<float> fitnessMedians = [];
 
-    public ActivationFunctionType HiddenLayersActivationFunction = ActivationFunctionType.HyperbolicTangent;
+    public ActivationFunctionType HiddenLayersActivationFunction = ActivationFunctionType.RectifiedLinearUnit;
     private ImGuiRenderer imGuiRenderer;
 
     private int networkCount = 100;
     private float networkGain = 0.5f;
     private NeuralNetwork[] networks;
 
-    private float newTimeBetweenResets = 10f;
+    private float newTimeBetweenResets = 30f;
     public ActivationFunctionType OutputLayerActivationFunction = ActivationFunctionType.HyperbolicTangent;
 
     private bool running;
@@ -57,12 +57,15 @@ public class Application : Game
     private bool showFitnessGraphs;
     private bool showNeuralNetwork;
 
-    private float simulationFrameRate = 60f;
+    private float simulationFrameRate = 20f;
     private bool simulationSpeedUncapped;
 
     private SpriteBatch spriteBatch;
 
     private Vector2 targetPosition;
+    private Vector2 startingArrowPosition;
+    private float startingArrowAngle;
+    private float deltaTime;
 
     public int WindowWidth
     {
@@ -88,6 +91,7 @@ public class Application : Game
 
     public float TimeBetweenResets { get; private set; }
     public float TimeLeftBeforeReset { get; private set; }
+    private float lastTimeLeftBeforeReset;
 
     public Application()
     {
@@ -116,6 +120,8 @@ public class Application : Game
 
         InitializeSimulation();
 
+        GameTime = new();
+
         base.Initialize();
     }
 
@@ -132,22 +138,27 @@ public class Application : Game
         }
     }
 
-    public const float ArrowAngleEpsilon = 1e-5f;
+    public const float ArrowAngleEpsilon = 1e-3f;
 
     private void InitializeArrows()
     {
-        Vector2 startingArrowPosition = GetRandomArrowSpawn();
+        RandomizeArrowSpawn();
 
         arrows = new Arrow[networkCount];
 
-        float randomAngle = GetRandomArrowAngle();
         for (int i = 0; i < networks.Length; i++)
         {
             arrows[i] = new(startingArrowPosition, networks[i], -1)
             {
-                Angle = randomAngle + ArrowAngleEpsilon * i
+                Angle = startingArrowAngle + ArrowAngleEpsilon * i
             };
         }
+    }
+
+    private void RandomizeArrowSpawn()
+    {
+        startingArrowPosition = GetRandomArrowSpawn();
+        startingArrowAngle = GetRandomArrowAngle();
     }
 
     protected override void LoadContent()
@@ -156,15 +167,22 @@ public class Application : Game
 
         imGuiRenderer.RebuildFontAtlas();
 
-        Arrow.Texture = Content.Load<Texture2D>("arrow");
+        Arrow.Texture = Content.Load<Texture2D>("sssdfg");
     }
+
+    private float lastTotalTime;
+
+    public GameTime GameTime { get; private set; }
 
     protected override void Update(GameTime gameTime)
     {
+        lastTotalTime = (float) GameTime.TotalGameTime.TotalSeconds;
+        GameTime = gameTime;
+
         MouseStateExtended mouse = MouseExtended.GetState();
         Vector2 mousePosition = mouse.Position.ToVector2();
 
-        float deltaTime = simulationSpeedUncapped ? 1f / simulationFrameRate : gameTime.GetElapsedSeconds();
+        deltaTime = simulationSpeedUncapped ? 1f / simulationFrameRate : gameTime.GetElapsedSeconds();
 
         // If mouse is inside the game window
         if (!ImGui.GetIO().WantCaptureMouse &&
@@ -177,7 +195,7 @@ public class Application : Game
             {
                 foreach (Arrow arrow in arrows)
                 {
-                    if ((mousePosition - arrow.Position).LengthSquared() < Arrow.Size.LengthSquared())
+                    if ((mousePosition - arrow.Position).Length() < Arrow.Size.X * 0.5f)
                     {
                         selectedArrow = arrow;
                         break;
@@ -192,15 +210,6 @@ public class Application : Game
         {
             foreach (Arrow arrow in arrows)
                 arrow.Update(deltaTime, targetPosition);
-
-            fitnessAverages.Add((float) networks.Average(n => n.Fitness));
-            fitnessMedians.Add((float) networks[networkCount / 2].Fitness);
-
-            if (fitnessAverages.Count > MaxFitnessGraphSize)
-                fitnessAverages = fitnessAverages[^MaxFitnessGraphSize..];
-
-            if (fitnessMedians.Count > MaxFitnessGraphSize)
-                fitnessMedians = fitnessMedians[^MaxFitnessGraphSize..];
 
             if (TimeLeftBeforeReset <= 0f)
             {
@@ -219,6 +228,7 @@ public class Application : Game
                 Array.Sort(arrows);
             }
 
+            lastTimeLeftBeforeReset = TimeLeftBeforeReset;
             TimeLeftBeforeReset -= deltaTime;
 
             if (runningForOneFrame)
@@ -228,6 +238,18 @@ public class Application : Game
         base.Update(gameTime);
     }
 
+    private void UpdateFitnessGraphsData()
+    {
+        fitnessAverages.Add((float) networks.Average(n => n.Fitness));
+        fitnessMedians.Add((float) networks[networkCount / 2].Fitness);
+
+        if (fitnessAverages.Count > MaxFitnessGraphSize)
+            fitnessAverages = fitnessAverages[^MaxFitnessGraphSize..];
+
+        if (fitnessMedians.Count > MaxFitnessGraphSize)
+            fitnessMedians = fitnessMedians[^MaxFitnessGraphSize..];
+    }
+
     protected override void Draw(GameTime gameTime)
     {
         GraphicsDevice.Clear(Color.SlateGray);
@@ -235,6 +257,8 @@ public class Application : Game
         spriteBatch.Begin();
 
         spriteBatch.DrawCircle(targetPosition, 10f, 20, Color.Red, 10f);
+
+        spriteBatch.DrawCircle(startingArrowPosition, 10f, 20, Color.Green, 10f);
 
         foreach (Arrow arrow in arrows)
         {
@@ -247,7 +271,7 @@ public class Application : Game
 
         selectedArrow?.Render(spriteBatch, Color.Lime);
 
-        spriteBatch.DrawCircle(targetPosition, FitnessBonusMaxDistance, 30, Color.Red);
+        // spriteBatch.DrawCircle(targetPosition, FitnessBonusMaxDistance, 30, Color.Red);
 
         spriteBatch.End();
 
@@ -295,12 +319,15 @@ public class Application : Game
         ImGui.Text($"Current iteration: {currentIteration}");
         ImGui.Text($"Average fitness: {(fitnessAverages.Count > 0 ? fitnessAverages[^1] : 0f)}");
         ImGui.Text($"Median fitness: {(fitnessMedians.Count > 0 ? fitnessMedians[^1] : 0f)}");
-        double simulationSpeed = fps / simulationFrameRate;
+        double simulationSpeed = simulationSpeedUncapped ? fps / simulationFrameRate : 1f;
         ImGui.Text($"Running at {simulationSpeed.ToString("F2", CultureInfo.CurrentCulture)}x speed");
         ImGui.Text($"{(simulationSpeed / TimeBetweenResets).ToString("F3", CultureInfo.CurrentCulture)} iterations per second");
 
         ImGui.TextColored(Color.Orange.ToVector4().ToNumerics(), $"Next reset in {TimeLeftBeforeReset}s");
+        if (ImGui.Button("Randomize arrow spawn"))
+            RandomizeArrowSpawn();
         ImGui.Text($"Target position {targetPosition}");
+        ImGui.Text($"Spawn position {startingArrowPosition}, angle: {MathHelper.ToDegrees(startingArrowAngle)}deg");
 
         ImGui.SeparatorText("Actions");
 
@@ -389,7 +416,7 @@ public class Application : Game
             string.Empty,
             float.MaxValue,
             float.MaxValue,
-            ImGui.GetContentRegionAvail()
+            ImGui.GetContentRegionAvail() * new System.Numerics.Vector2(0.8f, 0.5f)
         );
 
         if (fitnessMedians.Count > 0)
@@ -403,7 +430,7 @@ public class Application : Game
             string.Empty,
             float.MaxValue,
             float.MaxValue,
-            ImGui.GetContentRegionAvail()
+            ImGui.GetContentRegionAvail() * new System.Numerics.Vector2(0.8f, 1f)
         );
 
         ImGui.End();
@@ -411,6 +438,8 @@ public class Application : Game
 
     private void ResetSimulation(bool evolve)
     {
+        UpdateFitnessGraphsData();
+
         Array.Sort(networks);
 
         if (evolve)
@@ -424,8 +453,7 @@ public class Application : Game
 
         int selectedArrowIndex = selectedArrow?.Rank ?? -1;
 
-        Vector2 startingArrowPosition = GetRandomArrowSpawn();
-        float startingArrowAngle = GetRandomArrowAngle();
+        startingArrowAngle = GetRandomArrowAngle();
 
         for (int i = 0; i < networkCount; i++)
         {
@@ -492,7 +520,7 @@ public class Application : Game
 
     private float GetRandomArrowAngle() => random.NextSingle() * MathHelper.TwoPi;
 
-    public const float FitnessBonusMaxDistance = 100f;
+    public const float FitnessBonusMaxDistance = 60f;
     public const float FitnessBonusMaxDistanceSquared = FitnessBonusMaxDistance * FitnessBonusMaxDistance;
 
     private double ComputeFitness(NeuralNetwork network)
@@ -506,29 +534,33 @@ public class Application : Game
         //   to the target, and we make sure that the arrow isn't facing away
         //   from the target
 
-        const float AngleFitnessValueFar = 5f;
-        const float MaxAngleValueFar = MathHelper.PiOver4 * 0.5f;
+        const float AngleFitnessValueFar = 25f;
+        const float MaxAngleValueFar = MathHelper.PiOver2 * 1.5f;
 
-        const float AngleFitnessValueClose = 10f;
-        const float MaxAngleValueClose = MathHelper.PiOver4 * 1.5f;
-        const float PositionXFitnessValue = 2.5f;
-        const float PositionYFitnessValue = 2.5f;
+        // const float AngleFitnessValueClose = 10f;
+        // const float MaxAngleValueClose = MathHelper.Pi;
+        // const float PositionXFitnessValue = 2.5f;
+        // const float PositionYFitnessValue = 2.5f;
 
         float result = 0f;
         Vector2 angleDirection = Vector2.FromAngle(arrow.Angle);
         float dot = Vector2.Dot(angleDirection, arrow.TargetDirection);
 
-        if ((targetPosition - arrow.Position).LengthSquared() > FitnessBonusMaxDistanceSquared)
+        // if ((targetPosition - arrow.Position).LengthSquared() > FitnessBonusMaxDistanceSquared)
         {
             result += Calc.ComputeDifference(dot, 1f, MaxAngleValueFar / MathHelper.Pi, AngleFitnessValueFar);
         }
-        else
-        {
-            result += Calc.ComputeDifference(dot, 1f, MaxAngleValueClose / MathHelper.Pi, AngleFitnessValueClose);
-            result += Calc.ComputeDifference(arrow.Position.X, targetPosition.X, FitnessBonusMaxDistance, PositionXFitnessValue);
-            result += Calc.ComputeDifference(arrow.Position.Y, targetPosition.Y, FitnessBonusMaxDistance, PositionYFitnessValue);
-        }
+        // else
+        // {
+        //     result += Calc.ComputeDifference(dot, 1f, MaxAngleValueClose / MathHelper.Pi, AngleFitnessValueClose);
+        //     result += Calc.ComputeDifference(arrow.Position.X, targetPosition.X, FitnessBonusMaxDistance, PositionXFitnessValue);
+        //     result += Calc.ComputeDifference(arrow.Position.Y, targetPosition.Y, FitnessBonusMaxDistance, PositionYFitnessValue);
+        // }
 
-        return result;
+        return result * deltaTime;
     }
+
+    public static bool BetweenInterval(float interval) => Calc.BetweenInterval(Instance.TimeLeftBeforeReset, interval);
+
+    public static bool OnInterval(float interval) => Calc.OnInterval(Instance.TimeLeftBeforeReset, Instance.lastTimeLeftBeforeReset, interval);
 }

@@ -5,6 +5,7 @@ using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
+using MonoGame.Utils;
 using MonoGame.Utils.Extensions;
 
 namespace Arrows;
@@ -12,9 +13,11 @@ namespace Arrows;
 public class Arrow : IComparable<Arrow>
 {
     private const float Speed = 100f;
-    public const float MaxAngleTilting = MathHelper.TwoPi * 4f;
+    public const float MaxAngleTilting = MathHelper.TwoPi * 2f;
+
     public static Texture2D Texture;
     public static Vector2 Size = new(50f);
+
     public readonly int LastRank;
 
     public readonly NeuralNetwork Network;
@@ -29,6 +32,10 @@ public class Arrow : IComparable<Arrow>
 
     public float TargetAngle { get; private set; }
 
+    public float LastAngleTilting { get; private set; }
+
+    public bool AngleFlipped { get; private set; }
+
     public int Rank => Network.Rank;
 
     public Arrow(Vector2 position, NeuralNetwork network, int lastRank)
@@ -42,7 +49,14 @@ public class Arrow : IComparable<Arrow>
     {
         UpdatePosition(deltaTime);
 
-        Angle += ComputeNextAngleDelta(targetPosition) * deltaTime;
+        // AngleFlipped = Application.BetweenInterval(2f);
+
+        LastAngleTilting = ComputeNextAngleDelta(targetPosition) * deltaTime;
+
+        // if (AngleFlipped)
+        //     LastAngleTilting *= -1f;
+
+        Angle += LastAngleTilting;
         Direction = Vector2.FromAngle(Angle);
 
         Network.UpdateFitness();
@@ -63,7 +77,8 @@ public class Arrow : IComparable<Arrow>
         double[] networkOutputs = Network.ComputeOutputs(
             [
                 (Vector2.Dot(Direction, TargetDirection) + 1f) * 0.5f, // Difference with the target angle
-                Utils.BoolToFloat(difference.LengthSquared() < Application.FitnessBonusMaxDistanceSquared) // Distance to the target
+                Utils.BoolToFloat(difference.LengthSquared() < Application.FitnessBonusMaxDistanceSquared), // Distance to the target
+                Utils.BoolToFloat(AngleFlipped) // Whether the arrow's angle delta is flipped
             ],
             ActivationFunctions.GetFromType(Application.Instance.HiddenLayersActivationFunction),
             ActivationFunctions.GetFromType(Application.Instance.OutputLayerActivationFunction)

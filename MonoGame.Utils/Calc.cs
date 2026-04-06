@@ -22,4 +22,8 @@ public static class Calc
     /// <param name="angle">The radiant angle to normalize.</param>
     /// <returns>The normalized radiant angle.</returns>
     public static float NormalizeRadiantAngle(float angle) => (angle + MathHelper.TwoPi) % MathHelper.TwoPi;
+
+    public static bool BetweenInterval(float val, float interval) => val % (interval * 2) > interval;
+
+    public static bool OnInterval(float val, float prevVal, float interval) => (int) (prevVal / interval) != (int) (val / interval);
 }

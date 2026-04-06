@@ -54,7 +54,7 @@ public static class Utils
         {
             case <= 2.0: value *= -1.0; break;
             case <= 4.0: value = random.NextDouble() - 0.5; break;
-            case <= 6.0: value *= random.NextDouble() + 1.0; break;
+            case <= 6.0: value *= random.NextDouble() - 0.5; break;
             case <= 8.0: value *= random.NextDouble(); break;
         }
 
