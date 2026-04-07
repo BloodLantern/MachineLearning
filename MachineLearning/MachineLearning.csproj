@@ -9,8 +9,4 @@
     <LangVersion>14</LangVersion>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="ImGui.NET" Version="1.90.6.1"/>
-  </ItemGroup>
-
 </Project>
