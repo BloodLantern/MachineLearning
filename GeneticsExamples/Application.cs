@@ -508,6 +508,7 @@ public class Application : Game
     private void LoadSavedNetwork()
     {
         NeuralNetwork saved = NeuralNetwork.Load(SavePath);
+        saved.FitnessFunction = networks.First().FitnessFunction;
 
         for (int i = 0; i < networkCount; i++)
             networks[i] = new(saved);

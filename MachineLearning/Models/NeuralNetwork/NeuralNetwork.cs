@@ -38,7 +38,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             if (value.Length < 1)
                 throw new ArgumentException("Invalid layer count");
 
-            Layers = new Layer[value.Length - 1];
+            Layers = new Layer[value.Length + 1];
 
             Layers[0] = new(value.First().PreviousLayerNeuronCount);
 
