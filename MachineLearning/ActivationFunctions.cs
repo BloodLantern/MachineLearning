@@ -7,7 +7,8 @@ public delegate double ActivationFunction(double value);
 
 public static class ActivationFunctions
 {
-    public static ActivationFunction GetRandom() => GetRandom(Random.Shared);
+    private static readonly Random randomInstance = new();
+    public static ActivationFunction GetRandom() => GetRandom(randomInstance);
 
     public static ActivationFunction GetRandom(Random random) => Functions[random.Next(Functions.Length)];
 
