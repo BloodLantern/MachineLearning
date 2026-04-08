@@ -15,7 +15,6 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     [XmlIgnore]
     private readonly Random random;
 
-    [XmlIgnore]
     public double Fitness;
 
     [XmlIgnore]
