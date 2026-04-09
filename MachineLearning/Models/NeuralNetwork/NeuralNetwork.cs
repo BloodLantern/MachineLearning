@@ -171,10 +171,12 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].Mutate(random);
     }
 
-    public void LearnByFitness(double previousFitness, double gain)
+    public void LearnByFitness(double gain)
     {
+        double originalFitness = ComputeFitnessGain();
+
         for (int i = 1; i < Layers.Length; i++)
-            Layers[i].Learn(this, previousFitness);
+            Layers[i].Learn(this, originalFitness);
 
         for (int i = 1; i < Layers.Length; i++)
             Layers[i].ApplyGradients(gain);
@@ -232,12 +234,12 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
 
     public double ComputeFitnessGain(FitnessComputation fitnessFunction) => fitnessFunction(this);
 
-    internal double ComputeFitnessDifference(double previousFitnessGain, ref double value)
+    internal double ComputeFitnessDifference(double originalFitnessGain, ref double value)
     {
         const double Offset = 1e-5;
 
         value += Offset;
-        double fitnessDiff = ComputeFitnessGain() - previousFitnessGain;
+        double fitnessDiff = ComputeFitnessGain() - originalFitnessGain;
         value -= Offset;
 
         return fitnessDiff / Offset;

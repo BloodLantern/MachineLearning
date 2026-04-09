@@ -85,8 +85,7 @@ public class Neuron
         foreach (Link link in Links)
             link.ApplyGradients(gain);
 
-        if (BiasGradient > 0.0)
-            Bias += BiasGradient * gain;
+        Bias += Math.Clamp(BiasGradient, -10.0, 10.0) * gain;
     }
 
     public void LearnByBackpropagation(double errorFactor, double gain, double[] previousLayerOutputs)
