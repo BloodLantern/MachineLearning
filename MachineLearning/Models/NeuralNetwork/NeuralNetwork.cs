@@ -171,14 +171,10 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].Mutate(random);
     }
 
-    public void LearnByFitness(double gain) => LearnByFitness(FitnessFunction, gain);
-
-    public void LearnByFitness(FitnessComputation fitnessFunction, double gain)
+    public void LearnByFitness(double previousFitness, double gain)
     {
-        double originalFitness = fitnessFunction(this);
-
         for (int i = 1; i < Layers.Length; i++)
-            Layers[i].Learn(this, originalFitness);
+            Layers[i].Learn(this, previousFitness);
 
         for (int i = 1; i < Layers.Length; i++)
             Layers[i].ApplyGradients(gain);
@@ -226,28 +222,37 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         Mutate();
     }
 
-    public double ComputeFitness()
+    public double ComputeFitnessGain()
     {
         if (FitnessFunction == null)
-            throw new ArgumentNullException(nameof(FitnessFunction), "Cannot call ComputeFitness() on a NeuralNetwork with a null FitnessFunction");
+            throw new ArgumentNullException(nameof(FitnessFunction), "Cannot call ComputeFitnessGain() on a NeuralNetwork with a null FitnessFunction");
 
-        return ComputeFitness(FitnessFunction);
+        return ComputeFitnessGain(FitnessFunction);
     }
 
-    public double ComputeFitness(FitnessComputation fitnessFunction) => fitnessFunction(this);
+    public double ComputeFitnessGain(FitnessComputation fitnessFunction) => fitnessFunction(this);
 
-    internal double ComputeFitnessDifference(double originalFitness, ref double value)
+    internal double ComputeFitnessDifference(double previousFitnessGain, ref double value)
     {
         const double Offset = 1e-5;
 
         value += Offset;
-        double fitnessDiff = ComputeFitness() - originalFitness;
+        double fitnessDiff = ComputeFitnessGain() - previousFitnessGain;
         value -= Offset;
 
         return fitnessDiff / Offset;
     }
 
-    public void UpdateFitness() => Fitness += ComputeFitness();
+    /// <summary>
+    /// Updates the total fitness, returning the gain.
+    /// </summary>
+    /// <returns><code>Fitness += gain; return gain;</code></returns>
+    public double UpdateFitness()
+    {
+        double gain = ComputeFitnessGain();
+        Fitness += gain;
+        return gain;
+    }
 
     public void Save(string path) => File.WriteAllText(path, Utils.GetXml(this, true));
 
