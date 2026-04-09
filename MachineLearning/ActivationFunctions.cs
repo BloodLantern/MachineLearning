@@ -34,12 +34,24 @@ public static class ActivationFunctions
         throw new ArgumentException(null, nameof(activationFunction));
     }
 
+    /// <summary>
+    /// Output range: [0, 1]
+    /// </summary>
     public static readonly ActivationFunction Step = value => value < 0.0 ? 0.0 : 1.0;
 
+    /// <summary>
+    /// Output range: [0, 1]
+    /// </summary>
     public static readonly ActivationFunction Sigmoid = value => 1.0 / (1.0 + Math.Exp(-value));
 
+    /// <summary>
+    /// Output range: [-1, 1]
+    /// </summary>
     public static readonly ActivationFunction HyperbolicTangent = Math.Tanh;
 
+    /// <summary>
+    /// Output range: [0, 1]
+    /// </summary>
     public static readonly ActivationFunction RectifiedLinearUnit = value => Math.Max(0, value);
 
     public static readonly ActivationFunction[] Functions = [Step, Sigmoid, HyperbolicTangent, RectifiedLinearUnit];
