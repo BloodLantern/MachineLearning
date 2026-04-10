@@ -1,9 +1,12 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Xml.Serialization;
 
 namespace MachineLearning.Models.NeuralNetwork;
+
+// TODO - Add binary serialization
 
 [Serializable]
 public class NeuralNetwork : IComparable<NeuralNetwork>
@@ -70,7 +73,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     }
 
     /// <summary>
-    /// Constructs a new NeuralNetwork which is a deep copy of the given network.
+    /// Constructs a new NeuralNetwork, which is a deep copy of the given network.
     /// </summary>
     /// <param name="copy">The network to create a deep copy of.</param>
     public NeuralNetwork(NeuralNetwork copy)
@@ -256,7 +259,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         return gain;
     }
 
-    public void Save(string path) => File.WriteAllText(path, Utils.GetXml(this, true));
+    public void Save(string path) => File.WriteAllText(path, Utils.GetXml(this, true), new UnicodeEncoding());
 
     public int CompareTo(NeuralNetwork other) => other == null ? throw new ArgumentNullException(nameof(other)) : -Fitness.CompareTo(other.Fitness);
 }
