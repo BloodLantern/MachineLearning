@@ -160,7 +160,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
 
         OutputLayer.FeedForward(outputLayerActivationFunction);
 
-        Neuron[] lastLayerNeurons = Layers[^1].Neurons;
+        Neuron[] lastLayerNeurons = OutputLayer.Neurons;
         double[] result = new double[lastLayerNeurons.Length];
 
         for (int i = 0; i < result.Length; i++)

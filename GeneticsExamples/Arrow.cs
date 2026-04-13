@@ -38,6 +38,9 @@ public class Arrow : IComparable<Arrow>
 
     public int Rank => Network.Rank;
 
+    private double lastOutput;
+    private double lastFitnessGain;
+
     public Arrow(Vector2 position, NeuralNetwork network, int lastRank)
     {
         Position = position;
@@ -59,7 +62,7 @@ public class Arrow : IComparable<Arrow>
         Angle += LastAngleTilting;
         Direction = Vector2.FromAngle(Angle);
 
-        Network.UpdateFitness();
+        lastFitnessGain = Network.UpdateFitness();
     }
 
     private void UpdatePosition(float deltaTime)
@@ -78,13 +81,17 @@ public class Arrow : IComparable<Arrow>
             [
                 (Vector2.Dot(Direction, TargetDirection) + 1f) * 0.5f, // Difference with the target angle
                 Utils.BoolToFloat(difference.LengthSquared() < Application.FitnessBonusMaxDistanceSquared), // Distance to the target
-                Utils.BoolToFloat(AngleFlipped) // Whether the arrow's angle delta is flipped
+                Utils.BoolToFloat(AngleFlipped), // Whether the arrow's angle delta is flipped
+                lastOutput,
+                lastFitnessGain
             ],
             ActivationFunctions.GetFromType(Application.Instance.HiddenLayersActivationFunction),
             ActivationFunctions.GetFromType(Application.Instance.OutputLayerActivationFunction)
         );
 
-        return (float) Math.Clamp(networkOutputs.Single(), -1.0, 1.0) * MaxAngleTilting;
+        double singleOutput = networkOutputs.Single();
+        lastOutput = singleOutput;
+        return (float) Math.Clamp(singleOutput, -1.0, 1.0) * MaxAngleTilting;
     }
 
     public void Render(SpriteBatch spriteBatch, Color tintColor) => spriteBatch.Draw(

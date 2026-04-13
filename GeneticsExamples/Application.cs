@@ -19,8 +19,9 @@ namespace Arrows;
 
 public class Application : Game
 {
-    private const int NetworkInputCount = 3;
+    private const int NetworkInputCount = 3 + 1 + 1;
     private const int NetworkOutputCount = 1;
+    private readonly int[] networkHiddenNeuronsCount = [10, 10];
 
     private const string SavePath = "network_save.xml";
 
@@ -31,7 +32,6 @@ public class Application : Game
     private readonly RectangleF arrowSpawnBounds;
 
     private readonly GraphicsDeviceManager graphics;
-    private readonly int[] networkHiddenNeuronsCount = [10, 10];
 
     private readonly Random random;
     private Arrow[] arrows;
