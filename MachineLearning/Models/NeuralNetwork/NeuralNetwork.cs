@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -174,8 +175,10 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].Mutate(random);
     }
 
-    public void LearnByFitness(double gain)
+    public void LearnByGradientDescent(double gain)
     {
+        Debug.Assert(double.IsFinite(gain));
+
         double originalFitness = ComputeFitnessGain();
 
         for (int i = 1; i < Layers.Length; i++)
@@ -190,6 +193,8 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         ActivationFunction outputLayerActivationFunction
     )
     {
+        Debug.Assert(double.IsFinite(gain));
+
         ComputeOutputs(inputs, hiddenLayersActivationFunction, outputLayerActivationFunction);
 
         for (int i = 0; i < OutputLayer.NeuronCount; i++)

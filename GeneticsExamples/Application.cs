@@ -221,7 +221,7 @@ public class Application : Game
 
                 for (int i = 0; i < networkCount; i++)
                 {
-                    networks[i].LearnByFitness(networkGain / TimeBetweenResets);
+                    networks[i].LearnByGradientDescent(networkGain);
                     networks[i].Rank = i;
                 }
 
@@ -484,7 +484,7 @@ public class Application : Game
 
         // Keep the 50% best and make them learn from their mistakes
         foreach (NeuralNetwork network in bestNetworks)
-            network.LearnByFitness(networkGain);
+            network.LearnByGradientDescent(networkGain);
 
         // Then create copies of the best networks and mutate 5% of them
         for (int i = 0; i < networkCount; i++)
