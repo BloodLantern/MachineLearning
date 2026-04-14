@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -11,25 +10,19 @@ namespace MachineLearning.Models.NeuralNetwork;
 // TODO - Add binary serialization
 
 [Serializable]
-public class NeuralNetwork : IComparable<NeuralNetwork>
+public class NeuralNetwork
 {
-    public delegate double FitnessComputation(NeuralNetwork network);
+    public delegate double RewardComputation(NeuralNetwork network);
 
     public static NeuralNetwork Load(string path) => Utils.LoadFromXml<NeuralNetwork>(File.ReadAllText(path));
 
-    [XmlIgnore]
-    private readonly Random random;
-
-    public double Fitness;
+    public double Reward;
 
     [XmlIgnore]
-    public FitnessComputation FitnessFunction;
+    public RewardComputation RewardFunction;
 
     [XmlIgnore]
     public Layer[] Layers;
-
-    [XmlIgnore]
-    public int Rank;
 
     public int LayerCount => Layers.Length;
 
@@ -59,19 +52,18 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
 
     public double[] Outputs => OutputLayer.Outputs;
 
-    public NeuralNetwork() => random = new();
+    public NeuralNetwork() { }
 
     public NeuralNetwork(Random random, int inputCount, int outputCount, params int[] hiddenLayerSizes)
         : this(random, null, inputCount, outputCount, hiddenLayerSizes) { }
 
-    public NeuralNetwork(Random random, FitnessComputation fitnessFunction, int inputCount, int outputCount, params int[] hiddenLayerSizes)
+    public NeuralNetwork(Random random, RewardComputation rewardFunction, int inputCount, int outputCount, params int[] hiddenLayerSizes)
     {
-        this.random = random;
-        FitnessFunction = fitnessFunction;
+        RewardFunction = rewardFunction;
 
         InitLayers(inputCount, outputCount, hiddenLayerSizes);
         InitNeurons();
-        InitLinks();
+        InitLinks(random);
     }
 
     /// <summary>
@@ -80,8 +72,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     /// <param name="copy">The network to create a deep copy of.</param>
     public NeuralNetwork(NeuralNetwork copy)
     {
-        random = copy.random;
-        FitnessFunction = copy.FitnessFunction;
+        RewardFunction = copy.RewardFunction;
 
         InitLayers(copy.InputLayer.NeuronCount, copy.OutputLayer.NeuronCount, copy.HiddenLayers.Select(l => l.NeuronCount).ToArray());
         InitNeurons();
@@ -99,8 +90,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         if (goodNetwork.Layers.Length != badNetwork.Layers.Length)
             throw new ArgumentException("Cannot merge networks with different amounts of layers");
 
-        random = badNetwork.random;
-        FitnessFunction = badNetwork.FitnessFunction;
+        RewardFunction = badNetwork.RewardFunction;
 
         InitLayers(
             goodNetwork.InputLayer.NeuronCount,
@@ -131,6 +121,12 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     private void InitLinks()
     {
         for (int i = 1; i < Layers.Length; i++)
+            Layers[i].InitLinks(Layers[i - 1]);
+    }
+
+    private void InitLinks(Random random)
+    {
+        for (int i = 1; i < Layers.Length; i++)
             Layers[i].InitLinks(Layers[i - 1], random);
     }
 
@@ -146,7 +142,6 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].MergeLinks(goodLayers[i].Neurons, badLayers[i].Neurons);
     }
 
-    [Pure]
     public double[] ComputeOutputs(
         double[] inputs, ActivationFunction hiddenLayersActivationFunction, ActivationFunction outputLayerActivationFunction
     )
@@ -171,22 +166,22 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         return result;
     }
 
-    public void Mutate()
+    public void Mutate(Random random)
     {
         for (int i = 1; i < Layers.Length; i++)
             Layers[i].Mutate(random);
     }
 
-    public void LearnByGradientDescent(double gain) => LearnByGradientDescent(gain, FitnessFunction);
+    public void LearnByGradientDescent(double gain) => LearnByGradientDescent(gain, RewardFunction);
 
-    public void LearnByGradientDescent(double gain, FitnessComputation fitnessFunction)
+    public void LearnByGradientDescent(double gain, RewardComputation rewardFunction)
     {
         Debug.Assert(double.IsFinite(gain));
 
-        double originalFitness = ComputeFitnessGain(fitnessFunction);
+        double originalReward = ComputeRewardGain(rewardFunction);
 
         for (int i = 1; i < Layers.Length; i++)
-            Layers[i].Learn(this, originalFitness, fitnessFunction);
+            Layers[i].Learn(this, originalReward, rewardFunction);
 
         for (int i = 1; i < Layers.Length; i++)
             Layers[i].ApplyGradients(gain);
@@ -228,50 +223,45 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
         }
     }
 
-    public void ResetNeurons()
+    public double ComputeRewardGain()
     {
-        InitNeurons();
-        InitLinks();
+        if (RewardFunction == null)
+        {
+            throw new ArgumentNullException(
+                nameof(RewardFunction),
+                $"Cannot call {nameof(ComputeRewardGain)} on a {nameof(NeuralNetwork)} with a null {nameof(RewardFunction)}"
+            );
+        }
 
-        Mutate();
+        return ComputeRewardGain(RewardFunction);
     }
 
-    public double ComputeFitnessGain()
-    {
-        if (FitnessFunction == null)
-            throw new ArgumentNullException(nameof(FitnessFunction), "Cannot call ComputeFitnessGain() on a NeuralNetwork with a null FitnessFunction");
+    public double ComputeRewardGain(RewardComputation rewardFunction) => rewardFunction(this);
 
-        return ComputeFitnessGain(FitnessFunction);
-    }
+    internal double ComputeRewardDifference(double originalRewardGain, ref double value)
+        => ComputeRewardDifference(originalRewardGain, ref value, RewardFunction);
 
-    public double ComputeFitnessGain(FitnessComputation fitnessFunction) => fitnessFunction(this);
-
-    internal double ComputeFitnessDifference(double originalFitnessGain, ref double value)
-        => ComputeFitnessDifference(originalFitnessGain, ref value, FitnessFunction);
-
-    internal double ComputeFitnessDifference(double originalFitnessGain, ref double value, FitnessComputation fitnessFunction)
+    internal double ComputeRewardDifference(double originalRewardGain, ref double value, RewardComputation rewardFunction)
     {
         const double Offset = 1e-5;
 
         value += Offset;
-        double fitnessDiff = ComputeFitnessGain(fitnessFunction) - originalFitnessGain;
+        double rewardDiff = ComputeRewardGain(rewardFunction) - originalRewardGain;
         value -= Offset;
 
-        return fitnessDiff / Offset;
+        return rewardDiff / Offset;
     }
 
     /// <summary>
-    /// Updates the total fitness, returning the gain.
+    /// Updates the total <see cref="Reward"/>, returning the gain.
     /// </summary>
-    /// <returns><code>Fitness += gain; return gain;</code></returns>
+    /// <returns><code>Reward += gain; return gain;</code></returns>
     public double UpdateFitness()
     {
-        double gain = ComputeFitnessGain();
-        Fitness += gain;
+        double gain = ComputeRewardGain();
+        Reward += gain;
         return gain;
     }
 
     public void Save(string path) => File.WriteAllText(path, Utils.GetXml(this, true), new UnicodeEncoding());
-
-    public int CompareTo(NeuralNetwork other) => other == null ? throw new ArgumentNullException(nameof(other)) : -Fitness.CompareTo(other.Fitness);
 }

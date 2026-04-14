@@ -31,6 +31,12 @@ public class Layer
             Neurons[i] = new();
     }
 
+    public void InitLinks(Layer previousLayer)
+    {
+        foreach (Neuron neuron in Neurons)
+            neuron.InitLinks(previousLayer.Neurons);
+    }
+
     public void InitLinks(Layer previousLayer, Random random)
     {
         foreach (Neuron neuron in Neurons)
@@ -64,10 +70,10 @@ public class Layer
             neuron.Mutate(random);
     }
 
-    public void Learn(NeuralNetwork network, double originalFitness, NeuralNetwork.FitnessComputation fitnessFunction)
+    public void Learn(NeuralNetwork network, double originalReward, NeuralNetwork.RewardComputation rewardFunction)
     {
         foreach (Neuron neuron in Neurons)
-            neuron.Learn(network, originalFitness, fitnessFunction);
+            neuron.Learn(network, originalReward, rewardFunction);
     }
 
     public void ApplyGradients(double gain)

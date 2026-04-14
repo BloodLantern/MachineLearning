@@ -10,15 +10,13 @@ using MonoGame.Utils.Extensions;
 
 namespace Arrows;
 
-public class Arrow : IComparable<Arrow>
+public class Arrow
 {
     private const float Speed = 100f;
     public const float MaxAngleTilting = MathHelper.TwoPi * 2f;
 
     public static Texture2D Texture;
     public static Vector2 Size = new(50f);
-
-    public readonly int LastRank;
 
     public readonly NeuralNetwork Network;
 
@@ -36,28 +34,20 @@ public class Arrow : IComparable<Arrow>
 
     public bool AngleFlipped { get; private set; }
 
-    public int Rank => Network.Rank;
-
     private double lastOutput;
     private double lastFitnessGain;
 
-    public Arrow(Vector2 position, NeuralNetwork network, int lastRank)
+    public Arrow(Vector2 position, NeuralNetwork network)
     {
         Position = position;
         Network = network;
-        LastRank = lastRank;
     }
 
     public void Update(float deltaTime, Vector2 targetPosition)
     {
         UpdatePosition(deltaTime);
 
-        // AngleFlipped = Application.BetweenInterval(2f);
-
         LastAngleTilting = ComputeNextAngleDelta(targetPosition) * deltaTime;
-
-        // if (AngleFlipped)
-        //     LastAngleTilting *= -1f;
 
         Angle += LastAngleTilting;
         Direction = Vector2.FromAngle(Angle);
@@ -104,6 +94,4 @@ public class Arrow : IComparable<Arrow>
         SpriteEffects.None,
         0f
     );
-
-    public int CompareTo(Arrow other) => Rank.CompareTo(other.Rank);
 }

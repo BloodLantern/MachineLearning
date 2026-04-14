@@ -7,6 +7,7 @@ namespace MachineLearning.Models.NeuralNetwork;
 [Serializable]
 public class Neuron
 {
+    [XmlAttribute]
     public double Bias = 0.1;
 
     [XmlIgnore]
@@ -27,6 +28,15 @@ public class Neuron
     public Neuron() { }
 
     public Neuron(double output) => Output = output;
+
+    public void InitLinks(Neuron[] previousNeurons)
+    {
+        Links = new Link[previousNeurons.Length];
+
+        // Set the weights randomly between -BaseWeightRange and BaseWeightRange
+        for (int i = 0; i < previousNeurons.Length; i++)
+            Links[i] = new(0.0, previousNeurons[i], this);
+    }
 
     public void InitLinks(Neuron[] previousNeurons, Random random)
     {
@@ -72,12 +82,12 @@ public class Neuron
         Utils.MutateValue(random, ref Bias);
     }
 
-    public void Learn(NeuralNetwork network, double originalFitness, NeuralNetwork.FitnessComputation fitnessFunction)
+    public void Learn(NeuralNetwork network, double originalReward, NeuralNetwork.RewardComputation rewardFunction)
     {
         foreach (Link link in Links)
-            link.Learn(network, originalFitness, fitnessFunction);
+            link.Learn(network, originalReward, rewardFunction);
 
-        BiasGradient = network.ComputeFitnessDifference(originalFitness, ref Bias, fitnessFunction);
+        BiasGradient = network.ComputeRewardDifference(originalReward, ref Bias, rewardFunction);
     }
 
     public void ApplyGradients(double gain)

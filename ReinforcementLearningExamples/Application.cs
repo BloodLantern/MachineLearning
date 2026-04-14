@@ -22,6 +22,7 @@ public class Application : Game
     private const int NetworkInputCount = 3 + 1 + 1;
     private const int NetworkOutputCount = 1;
     private readonly int[] networkHiddenNeuronsCount = [10, 10];
+    private readonly int[] learnerHiddenNeuronsCount = [3];
 
     private const string SavePath = "network_save.xml";
 
@@ -47,6 +48,8 @@ public class Application : Game
     private int networkCount = 100;
     private float networkGain = 0.5f;
     private NeuralNetwork[] networks;
+
+    private QLearner learner;
 
     private float newTimeBetweenResets = 30f;
     public ActivationFunctionType OutputLayerActivationFunction = ActivationFunctionType.HyperbolicTangent;
@@ -128,13 +131,14 @@ public class Application : Game
     private void InitializeNetworks(int count, int inputCount, int outputCount)
     {
         networks = new NeuralNetwork[count];
+        learner = new(inputCount, learnerHiddenNeuronsCount);
 
-        for (int i = 0; i < count; i++)
+        NeuralNetwork network = new(random, ComputeFitness, inputCount, outputCount, networkHiddenNeuronsCount);
+        networks[0] = network;
+
+        for (int i = 1; i < count; i++)
         {
-            networks[i] = new(random, ComputeFitness, inputCount, outputCount, networkHiddenNeuronsCount)
-            {
-                Rank = i
-            };
+            networks[i] = new(network);
         }
     }
 
@@ -148,7 +152,7 @@ public class Application : Game
 
         for (int i = 0; i < networks.Length; i++)
         {
-            arrows[i] = new(startingArrowPosition, networks[i], -1)
+            arrows[i] = new(startingArrowPosition, networks[i])
             {
                 Angle = startingArrowAngle + ArrowAngleEpsilon * i
             };
@@ -222,7 +226,6 @@ public class Application : Game
                 for (int i = 0; i < networkCount; i++)
                 {
                     networks[i].LearnByGradientDescent(networkGain);
-                    networks[i].Rank = i;
                 }
 
                 Array.Sort(arrows);
@@ -240,8 +243,8 @@ public class Application : Game
 
     private void UpdateFitnessGraphsData()
     {
-        fitnessAverages.Add((float) networks.Average(n => n.Fitness));
-        fitnessMedians.Add((float) networks[networkCount / 2].Fitness);
+        fitnessAverages.Add((float) networks.Average(n => n.Reward));
+        fitnessMedians.Add((float) networks[networkCount / 2].Reward);
 
         if (fitnessAverages.Count > MaxFitnessGraphSize)
             fitnessAverages = fitnessAverages[^MaxFitnessGraphSize..];
@@ -372,14 +375,12 @@ public class Application : Game
             ImGuiUtils.DirectionVector("Direction", ref direction, selectedArrow.TargetDirection);
 
             if (ImGui.Button("+"))
-                selectedArrow = arrows[(selectedArrow.Rank - 1 + arrows.Length) % arrows.Length];
+                selectedArrow = arrows[(arrows.IndexOf(selectedArrow) - 1 + arrows.Length) % arrows.Length];
             ImGui.SameLine();
             if (ImGui.Button("-"))
-                selectedArrow = arrows[(selectedArrow.Rank + 1) % arrows.Length];
+                selectedArrow = arrows[(arrows.IndexOf(selectedArrow) + 1) % arrows.Length];
             ImGui.SameLine();
-            ImGui.Text($"Current rank {selectedArrow.Rank + 1}");
-            ImGui.Text($"Last rank {selectedArrow.LastRank + 1}");
-            ImGui.Text($"Fitness {selectedArrow.Network.Fitness}");
+            ImGui.Text($"Reward {selectedArrow.Network.Reward}");
 
             ImGui.Checkbox("Show neural network", ref showNeuralNetwork);
 
@@ -402,7 +403,7 @@ public class Application : Game
 
     private void DrawFitnessGraphWindow()
     {
-        ImGui.Begin("Fitness graphs");
+        ImGui.Begin("Reward graphs");
 
         ref float pointer = ref Unsafe.NullRef<float>();
         if (fitnessAverages.Count > 0)
@@ -447,22 +448,21 @@ public class Application : Game
 
         for (int i = 0; i < networkCount; i++)
         {
-            networks[i].Rank = i;
             networks[i].UpdateFitness();
         }
 
-        int selectedArrowIndex = selectedArrow?.Rank ?? -1;
+        int selectedArrowIndex = arrows.IndexOf(selectedArrow);
 
         startingArrowAngle = GetRandomArrowAngle();
 
         for (int i = 0; i < networkCount; i++)
         {
-            arrows[i] = new(startingArrowPosition, networks[i], arrows[i].Rank)
+            arrows[i] = new(startingArrowPosition, networks[i])
             {
                 Angle = startingArrowAngle + ArrowAngleEpsilon * i
             };
 
-            if (arrows[i].LastRank == selectedArrowIndex)
+            if (i == selectedArrowIndex)
                 selectedArrow = arrows[i];
         }
 
@@ -492,7 +492,7 @@ public class Application : Game
             networks[i] = new(bestNetworks[i % bestNetworks.Length]);
 
             if (i < networkCount / (1f / MutateFraction))
-                networks[i].Mutate();
+                networks[i].Mutate(random);
         }
     }
 
@@ -508,7 +508,7 @@ public class Application : Game
     private void LoadSavedNetwork()
     {
         NeuralNetwork saved = NeuralNetwork.Load(SavePath);
-        saved.FitnessFunction = networks.First().FitnessFunction;
+        saved.RewardFunction = networks.First().RewardFunction;
 
         for (int i = 0; i < networkCount; i++)
             networks[i] = new(saved);
@@ -526,67 +526,17 @@ public class Application : Game
 
     private double ComputeFitness(NeuralNetwork network)
     {
-        Arrow arrow = arrows[network.Rank];
-
-        // The fitness is computed in two different ways:
-        // - If the arrow is outside the FitnessBonusMaxDistance range of the target,
-        //   we only care about the current arrow angle
-        // - If it is inside that range, we check how close it is
-        //   to the target, and we make sure that the arrow isn't facing away
-        //   from the target
+        Arrow arrow = arrows[networks.IndexOf(network)];
 
         const float AngleFitnessValueFar = 25f;
         const float MaxAngleValueFar = MathHelper.PiOver2 * 1.5f;
-
-        // const float AngleFitnessValueClose = 10f;
-        // const float MaxAngleValueClose = MathHelper.Pi;
-        // const float PositionXFitnessValue = 2.5f;
-        // const float PositionYFitnessValue = 2.5f;
 
         float result = 0f;
         Vector2 angleDirection = Vector2.FromAngle(arrow.Angle);
         float dot = Vector2.Dot(angleDirection, arrow.TargetDirection);
 
-        // if ((targetPosition - arrow.Position).LengthSquared() > FitnessBonusMaxDistanceSquared)
-        {
-            result += Calc.ComputeDifference(dot, 1f, MaxAngleValueFar / MathHelper.Pi, AngleFitnessValueFar);
-        }
-        // else
-        // {
-        //     result += Calc.ComputeDifference(dot, 1f, MaxAngleValueClose / MathHelper.Pi, AngleFitnessValueClose);
-        //     result += Calc.ComputeDifference(arrow.Position.X, targetPosition.X, FitnessBonusMaxDistance, PositionXFitnessValue);
-        //     result += Calc.ComputeDifference(arrow.Position.Y, targetPosition.Y, FitnessBonusMaxDistance, PositionYFitnessValue);
-        // }
+        result += Calc.ComputeDifference(dot, 1f, MaxAngleValueFar / MathHelper.Pi, AngleFitnessValueFar);
 
         return result * deltaTime;
-    }
-
-    public static bool BetweenInterval(float interval) => Calc.BetweenInterval(Instance.TimeLeftBeforeReset, interval);
-
-    public static bool OnInterval(float interval) => Calc.OnInterval(Instance.TimeLeftBeforeReset, Instance.lastTimeLeftBeforeReset, interval);
-}
-
-public class QLearner
-{
-    private readonly NeuralNetwork network;
-
-    public QLearner(int inputCount, params int[] hiddenLayerSizes) : this(Random.Shared, inputCount, hiddenLayerSizes) { }
-
-    public QLearner(Random random, int inputCount, params int[] hiddenLayerSizes)
-        => network = new(random, inputCount, 1, hiddenLayerSizes);
-
-    public double EstimateQuality(double[] state)
-        => network.ComputeOutputs(state, ActivationFunctions.RectifiedLinearUnit, ActivationFunctions.Sigmoid).Single();
-
-    public void LearnByGradientDescent(double[] state, double[] actions, double reward, double gain)
-    {
-        network.LearnByGradientDescent(gain, _ => ComputeFitness(state, reward));
-    }
-
-    private double ComputeFitness(double[] state, double reward)
-    {
-        double output = network.ComputeOutputs(state, ActivationFunctions.RectifiedLinearUnit, ActivationFunctions.Sigmoid).Single();
-        double error = reward - output;
-        return error * error;
     }
 }
