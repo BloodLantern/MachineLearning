@@ -565,3 +565,28 @@ public class Application : Game
 
     public static bool OnInterval(float interval) => Calc.OnInterval(Instance.TimeLeftBeforeReset, Instance.lastTimeLeftBeforeReset, interval);
 }
+
+public class QLearner
+{
+    private readonly NeuralNetwork network;
+
+    public QLearner(int inputCount, params int[] hiddenLayerSizes) : this(Random.Shared, inputCount, hiddenLayerSizes) { }
+
+    public QLearner(Random random, int inputCount, params int[] hiddenLayerSizes)
+        => network = new(random, inputCount, 1, hiddenLayerSizes);
+
+    public double EstimateQuality(double[] state)
+        => network.ComputeOutputs(state, ActivationFunctions.RectifiedLinearUnit, ActivationFunctions.Sigmoid).Single();
+
+    public void LearnByGradientDescent(double[] state, double[] actions, double reward, double gain)
+    {
+        network.LearnByGradientDescent(gain, _ => ComputeFitness(state, reward));
+    }
+
+    private double ComputeFitness(double[] state, double reward)
+    {
+        double output = network.ComputeOutputs(state, ActivationFunctions.RectifiedLinearUnit, ActivationFunctions.Sigmoid).Single();
+        double error = reward - output;
+        return error * error;
+    }
+}

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -145,6 +146,7 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].MergeLinks(goodLayers[i].Neurons, badLayers[i].Neurons);
     }
 
+    [Pure]
     public double[] ComputeOutputs(
         double[] inputs, ActivationFunction hiddenLayersActivationFunction, ActivationFunction outputLayerActivationFunction
     )
@@ -175,14 +177,16 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
             Layers[i].Mutate(random);
     }
 
-    public void LearnByGradientDescent(double gain)
+    public void LearnByGradientDescent(double gain) => LearnByGradientDescent(gain, FitnessFunction);
+
+    public void LearnByGradientDescent(double gain, FitnessComputation fitnessFunction)
     {
         Debug.Assert(double.IsFinite(gain));
 
-        double originalFitness = ComputeFitnessGain();
+        double originalFitness = ComputeFitnessGain(fitnessFunction);
 
         for (int i = 1; i < Layers.Length; i++)
-            Layers[i].Learn(this, originalFitness);
+            Layers[i].Learn(this, originalFitness, fitnessFunction);
 
         for (int i = 1; i < Layers.Length; i++)
             Layers[i].ApplyGradients(gain);
@@ -243,11 +247,14 @@ public class NeuralNetwork : IComparable<NeuralNetwork>
     public double ComputeFitnessGain(FitnessComputation fitnessFunction) => fitnessFunction(this);
 
     internal double ComputeFitnessDifference(double originalFitnessGain, ref double value)
+        => ComputeFitnessDifference(originalFitnessGain, ref value, FitnessFunction);
+
+    internal double ComputeFitnessDifference(double originalFitnessGain, ref double value, FitnessComputation fitnessFunction)
     {
         const double Offset = 1e-5;
 
         value += Offset;
-        double fitnessDiff = ComputeFitnessGain() - originalFitnessGain;
+        double fitnessDiff = ComputeFitnessGain(fitnessFunction) - originalFitnessGain;
         value -= Offset;
 
         return fitnessDiff / Offset;

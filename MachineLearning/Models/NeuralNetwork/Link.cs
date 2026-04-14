@@ -36,8 +36,8 @@ public class Link
 
     public void Mutate(Random random) => Mutated = Utils.MutateValue(random, ref Weight);
 
-    public void Learn(NeuralNetwork network, double originalFitness)
-        => WeightGradient = network.ComputeFitnessDifference(originalFitness, ref Weight);
+    public void Learn(NeuralNetwork network, double originalFitness, NeuralNetwork.FitnessComputation fitnessFunction)
+        => WeightGradient = network.ComputeFitnessDifference(originalFitness, ref Weight, fitnessFunction);
 
     public void ApplyGradients(double learnRate)
         => Weight += Math.Clamp(WeightGradient, -10.0, 10.0) * learnRate;

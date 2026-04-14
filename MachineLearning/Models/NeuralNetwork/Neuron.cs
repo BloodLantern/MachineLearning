@@ -72,12 +72,12 @@ public class Neuron
         Utils.MutateValue(random, ref Bias);
     }
 
-    public void Learn(NeuralNetwork network, double originalFitness)
+    public void Learn(NeuralNetwork network, double originalFitness, NeuralNetwork.FitnessComputation fitnessFunction)
     {
         foreach (Link link in Links)
-            link.Learn(network, originalFitness);
+            link.Learn(network, originalFitness, fitnessFunction);
 
-        BiasGradient = network.ComputeFitnessDifference(originalFitness, ref Bias);
+        BiasGradient = network.ComputeFitnessDifference(originalFitness, ref Bias, fitnessFunction);
     }
 
     public void ApplyGradients(double gain)

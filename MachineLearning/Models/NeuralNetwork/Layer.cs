@@ -64,10 +64,10 @@ public class Layer
             neuron.Mutate(random);
     }
 
-    public void Learn(NeuralNetwork network, double originalFitness)
+    public void Learn(NeuralNetwork network, double originalFitness, NeuralNetwork.FitnessComputation fitnessFunction)
     {
         foreach (Neuron neuron in Neurons)
-            neuron.Learn(network, originalFitness);
+            neuron.Learn(network, originalFitness, fitnessFunction);
     }
 
     public void ApplyGradients(double gain)
