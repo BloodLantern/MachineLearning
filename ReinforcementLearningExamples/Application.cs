@@ -1,85 +1,30 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using ImGuiNET;
-using MachineLearning;
-using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using MonoGame.Extended;
-using MonoGame.Extended.Input;
 using MonoGame.ImGuiNet;
-using MonoGame.Utils;
-using MonoGame.Utils.Extensions;
 
 namespace Arrows;
 
 public class Application : Game
 {
-    private const int NetworkInputCount = 3 + 1 + 1;
-    private const int NetworkOutputCount = 1;
-    private readonly int[] networkHiddenNeuronsCount = [10, 10];
-    private readonly int[] learnerHiddenNeuronsCount = [3];
-
-    private const string SavePath = "network_save.xml";
-
-    private const int MaxFitnessGraphSize = 100;
-
     public static Application Instance;
 
-    private readonly RectangleF arrowSpawnBounds;
+    public GraphicsDeviceManager Graphics { get; }
 
-    private readonly GraphicsDeviceManager graphics;
-
-    private readonly Random random;
-    private Arrow[] arrows;
-
-    private bool bestArrowSelected;
-    private int currentIteration = 1;
-    private List<float> fitnessAverages = [];
-    private List<float> fitnessMedians = [];
-
-    public ActivationFunctionType HiddenLayersActivationFunction = ActivationFunctionType.RectifiedLinearUnit;
     private ImGuiRenderer imGuiRenderer;
-
-    private int networkCount = 100;
-    private float networkGain = 0.5f;
-    private NeuralNetwork[] networks;
-
-    private QLearner learner;
-
-    private float newTimeBetweenResets = 30f;
-    public ActivationFunctionType OutputLayerActivationFunction = ActivationFunctionType.HyperbolicTangent;
-
-    private bool running;
-    private bool runningForOneFrame;
-    private Arrow selectedArrow;
-    private bool showFitnessGraphs;
-    private bool showNeuralNetwork;
-
-    private float simulationFrameRate = 20f;
-    private bool simulationSpeedUncapped;
 
     private SpriteBatch spriteBatch;
 
-    private Vector2 targetPosition;
-    private Vector2 startingArrowPosition;
-    private float startingArrowAngle;
-    private float deltaTime;
-
     public int WindowWidth
     {
-        get => graphics.PreferredBackBufferWidth;
-        init => graphics.PreferredBackBufferWidth = value;
+        get => Graphics.PreferredBackBufferWidth;
+        init => Graphics.PreferredBackBufferWidth = value;
     }
 
     public int WindowHeight
     {
-        get => graphics.PreferredBackBufferHeight;
-        init => graphics.PreferredBackBufferHeight = value;
+        get => Graphics.PreferredBackBufferHeight;
+        init => Graphics.PreferredBackBufferHeight = value;
     }
 
     public Vector2 WindowSize
@@ -92,14 +37,12 @@ public class Application : Game
         }
     }
 
-    public float TimeBetweenResets { get; private set; }
-    public float TimeLeftBeforeReset { get; private set; }
-    private float lastTimeLeftBeforeReset;
+    public readonly Simulation Simulation;
 
     public Application()
     {
         Instance = this;
-        graphics = new(this);
+        Graphics = new(this);
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
 
@@ -108,61 +51,18 @@ public class Application : Game
 
         IsFixedTimeStep = false;
         InactiveSleepTime = TimeSpan.Zero;
-        graphics.SynchronizeWithVerticalRetrace = true;
+        Graphics.SynchronizeWithVerticalRetrace = true;
 
-        random = new(DateTime.Now.Millisecond);
-
-        arrowSpawnBounds = new(WindowSize * 0.1f, WindowSize * 0.9f);
-
-        TimeLeftBeforeReset = newTimeBetweenResets;
+        Simulation = new(this);
     }
 
     protected override void Initialize()
     {
         imGuiRenderer = new(this);
 
-        InitializeSimulation();
-
-        GameTime = new();
+        Simulation.Initialize();
 
         base.Initialize();
-    }
-
-    private void InitializeNetworks(int count, int inputCount, int outputCount)
-    {
-        networks = new NeuralNetwork[count];
-        learner = new(inputCount, learnerHiddenNeuronsCount);
-
-        NeuralNetwork network = new(random, ComputeFitness, inputCount, outputCount, networkHiddenNeuronsCount);
-        networks[0] = network;
-
-        for (int i = 1; i < count; i++)
-        {
-            networks[i] = new(network);
-        }
-    }
-
-    public const float ArrowAngleEpsilon = 1e-3f;
-
-    private void InitializeArrows()
-    {
-        RandomizeArrowSpawn();
-
-        arrows = new Arrow[networkCount];
-
-        for (int i = 0; i < networks.Length; i++)
-        {
-            arrows[i] = new(startingArrowPosition, networks[i])
-            {
-                Angle = startingArrowAngle + ArrowAngleEpsilon * i
-            };
-        }
-    }
-
-    private void RandomizeArrowSpawn()
-    {
-        startingArrowPosition = GetRandomArrowSpawn();
-        startingArrowAngle = GetRandomArrowAngle();
     }
 
     protected override void LoadContent()
@@ -174,369 +74,23 @@ public class Application : Game
         Arrow.Texture = Content.Load<Texture2D>("sssdfg");
     }
 
-    private float lastTotalTime;
-
-    public GameTime GameTime { get; private set; }
-
     protected override void Update(GameTime gameTime)
     {
-        lastTotalTime = (float) GameTime.TotalGameTime.TotalSeconds;
-        GameTime = gameTime;
-
-        MouseStateExtended mouse = MouseExtended.GetState();
-        Vector2 mousePosition = mouse.Position.ToVector2();
-
-        deltaTime = simulationSpeedUncapped ? 1f / simulationFrameRate : gameTime.GetElapsedSeconds();
-
-        // If mouse is inside the game window
-        if (!ImGui.GetIO().WantCaptureMouse &&
-            new Rectangle(Point.Zero, WindowSize.ToPoint()).Contains(mouse.Position))
-        {
-            if (mouse.IsButtonDown(MouseButton.Right))
-                targetPosition = mousePosition;
-
-            if (mouse.WasButtonJustDown(MouseButton.Left))
-            {
-                foreach (Arrow arrow in arrows)
-                {
-                    if ((mousePosition - arrow.Position).Length() < Arrow.Size.X * 0.5f)
-                    {
-                        selectedArrow = arrow;
-                        break;
-                    }
-
-                    selectedArrow = null;
-                }
-            }
-        }
-
-        if (running || runningForOneFrame)
-        {
-            foreach (Arrow arrow in arrows)
-                arrow.Update(deltaTime, targetPosition);
-
-            if (TimeLeftBeforeReset <= 0f)
-            {
-                ResetSimulation(true);
-            }
-            else
-            {
-                Array.Sort(networks);
-
-                for (int i = 0; i < networkCount; i++)
-                {
-                    networks[i].LearnByGradientDescent(networkGain);
-                }
-
-                Array.Sort(arrows);
-            }
-
-            lastTimeLeftBeforeReset = TimeLeftBeforeReset;
-            TimeLeftBeforeReset -= deltaTime;
-
-            if (runningForOneFrame)
-                runningForOneFrame = false;
-        }
+        Simulation.Update(gameTime);
 
         base.Update(gameTime);
-    }
-
-    private void UpdateFitnessGraphsData()
-    {
-        fitnessAverages.Add((float) networks.Average(n => n.Reward));
-        fitnessMedians.Add((float) networks[networkCount / 2].Reward);
-
-        if (fitnessAverages.Count > MaxFitnessGraphSize)
-            fitnessAverages = fitnessAverages[^MaxFitnessGraphSize..];
-
-        if (fitnessMedians.Count > MaxFitnessGraphSize)
-            fitnessMedians = fitnessMedians[^MaxFitnessGraphSize..];
     }
 
     protected override void Draw(GameTime gameTime)
     {
         GraphicsDevice.Clear(Color.SlateGray);
 
-        spriteBatch.Begin();
-
-        spriteBatch.DrawCircle(targetPosition, 10f, 20, Color.Red, 10f);
-
-        spriteBatch.DrawCircle(startingArrowPosition, 10f, 20, Color.Green, 10f);
-
-        foreach (Arrow arrow in arrows)
-        {
-            Color color = Color.White;
-            if (selectedArrow != null && selectedArrow != arrow)
-                color *= 0.05f;
-
-            arrow.Render(spriteBatch, color);
-        }
-
-        selectedArrow?.Render(spriteBatch, Color.Lime);
-
-        // spriteBatch.DrawCircle(targetPosition, FitnessBonusMaxDistance, 30, Color.Red);
-
-        spriteBatch.End();
+        Simulation.Draw(spriteBatch);
 
         base.Draw(gameTime);
 
         imGuiRenderer.BeginLayout(gameTime);
-        DrawImGui(gameTime);
+        SimulationImGui.DrawImGui(Simulation, gameTime);
         imGuiRenderer.EndLayout();
-    }
-
-    protected virtual void DrawImGui(GameTime gameTime)
-    {
-        ImGui.Begin("Simulation");
-
-        ImGui.SeparatorText("Settings");
-
-        ImGui.InputInt("Network count", ref networkCount);
-
-        ImGuiUtils.ComboEnum("Network hidden layers activation function", ref HiddenLayersActivationFunction);
-        ImGuiUtils.ComboEnum("Network output layers activation function", ref OutputLayerActivationFunction);
-
-        ImGui.SliderFloat("Network gain", ref networkGain, 0f, 1f);
-
-        if (ImGui.DragFloat("Time between resets", ref newTimeBetweenResets, 0.1f, 1f))
-            TimeLeftBeforeReset = MathF.Min(TimeLeftBeforeReset, newTimeBetweenResets);
-        if (ImGui.Checkbox("Uncap FPS", ref simulationSpeedUncapped))
-        {
-            graphics.SynchronizeWithVerticalRetrace = !simulationSpeedUncapped;
-            graphics.ApplyChanges();
-        }
-
-        if (!simulationSpeedUncapped)
-            ImGui.BeginDisabled();
-
-        ImGui.SliderFloat("Simulation FPS", ref simulationFrameRate, 5f, 300f);
-
-        if (!simulationSpeedUncapped)
-            ImGui.EndDisabled();
-
-        ImGui.SeparatorText("Readonly data");
-
-        double fps = 1.0 / gameTime.ElapsedGameTime.TotalSeconds;
-        ImGui.Text($"FPS: {fps}");
-        ImGui.Text($"Total time: {gameTime.TotalGameTime}");
-        ImGui.Text($"Current iteration: {currentIteration}");
-        ImGui.Text($"Average fitness: {(fitnessAverages.Count > 0 ? fitnessAverages[^1] : 0f)}");
-        ImGui.Text($"Median fitness: {(fitnessMedians.Count > 0 ? fitnessMedians[^1] : 0f)}");
-        double simulationSpeed = simulationSpeedUncapped ? fps / simulationFrameRate : 1f;
-        ImGui.Text($"Running at {simulationSpeed.ToString("F2", CultureInfo.CurrentCulture)}x speed");
-        ImGui.Text($"{(simulationSpeed / TimeBetweenResets).ToString("F3", CultureInfo.CurrentCulture)} iterations per second");
-
-        ImGui.TextColored(Color.Orange.ToVector4().ToNumerics(), $"Next reset in {TimeLeftBeforeReset}s");
-        if (ImGui.Button("Randomize arrow spawn"))
-            RandomizeArrowSpawn();
-        ImGui.Text($"Target position {targetPosition}");
-        ImGui.Text($"Spawn position {startingArrowPosition}, angle: {MathHelper.ToDegrees(startingArrowAngle)}deg");
-
-        ImGui.SeparatorText("Actions");
-
-        ImGui.Checkbox("Running", ref running);
-
-        if (ImGui.Button("Next generation"))
-            ResetSimulation(true);
-
-        if (running)
-            ImGui.BeginDisabled();
-
-        if (ImGui.Button("Next frame"))
-            runningForOneFrame = true;
-
-        if (running)
-            ImGui.EndDisabled();
-
-        if (ImGui.Button("Save best"))
-            SaveBestNetwork();
-
-        if (ImGui.Button("Load save"))
-            LoadSavedNetwork();
-
-        ImGui.Checkbox("Show fitness graphs", ref showFitnessGraphs);
-
-        if (ImGui.Button("Select best arrow"))
-            selectedArrow = arrows[0];
-
-        if (ImGui.Checkbox("Keep best arrow selected", ref bestArrowSelected) && !bestArrowSelected)
-            selectedArrow = null;
-
-        if (bestArrowSelected)
-            selectedArrow = arrows[0];
-
-        if (selectedArrow != null)
-        {
-            ImGui.SeparatorText("Selected arrow data");
-
-            ImGui.Text($"Position {selectedArrow.Position}");
-            ImGui.Text($"Angle {MathHelper.ToDegrees(selectedArrow.Angle)}deg");
-            Vector2 direction = new(MathF.Cos(selectedArrow.Angle), -MathF.Sin(selectedArrow.Angle));
-            ImGuiUtils.DirectionVector("Direction", ref direction, selectedArrow.TargetDirection);
-
-            if (ImGui.Button("+"))
-                selectedArrow = arrows[(arrows.IndexOf(selectedArrow) - 1 + arrows.Length) % arrows.Length];
-            ImGui.SameLine();
-            if (ImGui.Button("-"))
-                selectedArrow = arrows[(arrows.IndexOf(selectedArrow) + 1) % arrows.Length];
-            ImGui.SameLine();
-            ImGui.Text($"Reward {selectedArrow.Network.Reward}");
-
-            ImGui.Checkbox("Show neural network", ref showNeuralNetwork);
-
-            if (showNeuralNetwork)
-                DrawNeuralNetworkWindow();
-        }
-
-        ImGui.End();
-
-        if (showFitnessGraphs)
-            DrawFitnessGraphWindow();
-    }
-
-    private void DrawNeuralNetworkWindow()
-    {
-        ImGui.Begin("Neural Network");
-        ImGuiUtils.DisplayNeuralNetwork(selectedArrow.Network);
-        ImGui.End();
-    }
-
-    private void DrawFitnessGraphWindow()
-    {
-        ImGui.Begin("Reward graphs");
-
-        ref float pointer = ref Unsafe.NullRef<float>();
-        if (fitnessAverages.Count > 0)
-            pointer = ref CollectionsMarshal.AsSpan(fitnessAverages)[0];
-
-        ImGui.PlotLines(
-            "Average",
-            ref pointer,
-            fitnessAverages.Count,
-            0,
-            string.Empty,
-            float.MaxValue,
-            float.MaxValue,
-            ImGui.GetContentRegionAvail() * new System.Numerics.Vector2(0.8f, 0.5f)
-        );
-
-        if (fitnessMedians.Count > 0)
-            pointer = ref CollectionsMarshal.AsSpan(fitnessMedians)[0];
-
-        ImGui.PlotLines(
-            "Median",
-            ref pointer,
-            fitnessMedians.Count,
-            0,
-            string.Empty,
-            float.MaxValue,
-            float.MaxValue,
-            ImGui.GetContentRegionAvail() * new System.Numerics.Vector2(0.8f, 1f)
-        );
-
-        ImGui.End();
-    }
-
-    private void ResetSimulation(bool evolve)
-    {
-        UpdateFitnessGraphsData();
-
-        Array.Sort(networks);
-
-        if (evolve)
-            EvolveSimulation();
-
-        for (int i = 0; i < networkCount; i++)
-        {
-            networks[i].UpdateFitness();
-        }
-
-        int selectedArrowIndex = arrows.IndexOf(selectedArrow);
-
-        startingArrowAngle = GetRandomArrowAngle();
-
-        for (int i = 0; i < networkCount; i++)
-        {
-            arrows[i] = new(startingArrowPosition, networks[i])
-            {
-                Angle = startingArrowAngle + ArrowAngleEpsilon * i
-            };
-
-            if (i == selectedArrowIndex)
-                selectedArrow = arrows[i];
-        }
-
-        Array.Sort(arrows);
-
-        TimeBetweenResets = newTimeBetweenResets;
-        TimeLeftBeforeReset = newTimeBetweenResets;
-
-        currentIteration++;
-    }
-
-    private void EvolveSimulation()
-    {
-        const float BestNetworksFraction = 0.5f;
-        const float MutateFraction = 0.05f;
-
-        // Assume sorted networks array
-        NeuralNetwork[] bestNetworks = networks[..(int) (networkCount / (1f / BestNetworksFraction))];
-
-        // Keep the 50% best and make them learn from their mistakes
-        foreach (NeuralNetwork network in bestNetworks)
-            network.LearnByGradientDescent(networkGain);
-
-        // Then create copies of the best networks and mutate 5% of them
-        for (int i = 0; i < networkCount; i++)
-        {
-            networks[i] = new(bestNetworks[i % bestNetworks.Length]);
-
-            if (i < networkCount / (1f / MutateFraction))
-                networks[i].Mutate(random);
-        }
-    }
-
-    private void InitializeSimulation()
-    {
-        InitializeNetworks(networkCount, NetworkInputCount, NetworkOutputCount);
-        targetPosition = random.NextVector2() * 0.5f * WindowSize + WindowSize * 0.25f;
-        InitializeArrows();
-    }
-
-    private void SaveBestNetwork() => arrows[0].Network.Save(SavePath);
-
-    private void LoadSavedNetwork()
-    {
-        NeuralNetwork saved = NeuralNetwork.Load(SavePath);
-        saved.RewardFunction = networks.First().RewardFunction;
-
-        for (int i = 0; i < networkCount; i++)
-            networks[i] = new(saved);
-
-        ResetSimulation(false);
-    }
-
-    private Vector2 GetRandomArrowSpawn()
-        => random.NextVector2() * ((Point2) arrowSpawnBounds.Size - arrowSpawnBounds.Position) + arrowSpawnBounds.Position;
-
-    private float GetRandomArrowAngle() => random.NextSingle() * MathHelper.TwoPi;
-
-    public const float FitnessBonusMaxDistance = 60f;
-    public const float FitnessBonusMaxDistanceSquared = FitnessBonusMaxDistance * FitnessBonusMaxDistance;
-
-    private double ComputeFitness(NeuralNetwork network)
-    {
-        Arrow arrow = arrows[networks.IndexOf(network)];
-
-        const float AngleFitnessValueFar = 25f;
-        const float MaxAngleValueFar = MathHelper.PiOver2 * 1.5f;
-
-        float result = 0f;
-        Vector2 angleDirection = Vector2.FromAngle(arrow.Angle);
-        float dot = Vector2.Dot(angleDirection, arrow.TargetDirection);
-
-        result += Calc.ComputeDifference(dot, 1f, MaxAngleValueFar / MathHelper.Pi, AngleFitnessValueFar);
-
-        return result * deltaTime;
     }
 }

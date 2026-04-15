@@ -5,7 +5,6 @@ using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
-using MonoGame.Utils;
 using MonoGame.Utils.Extensions;
 
 namespace Arrows;
@@ -69,14 +68,16 @@ public class Arrow
 
         double[] networkOutputs = Network.ComputeOutputs(
             [
-                (Vector2.Dot(Direction, TargetDirection) + 1f) * 0.5f, // Difference with the target angle
-                Utils.BoolToFloat(difference.LengthSquared() < Application.FitnessBonusMaxDistanceSquared), // Distance to the target
-                Utils.BoolToFloat(AngleFlipped), // Whether the arrow's angle delta is flipped
+                Direction.X,
+                Direction.Y,
+                TargetDirection.X,
+                TargetDirection.Y,
+
                 lastOutput,
                 lastFitnessGain
             ],
-            ActivationFunctions.GetFromType(Application.Instance.HiddenLayersActivationFunction),
-            ActivationFunctions.GetFromType(Application.Instance.OutputLayerActivationFunction)
+            ActivationFunctions.GetFromType(Application.Instance.Simulation.HiddenLayersActivationFunction),
+            ActivationFunctions.GetFromType(Application.Instance.Simulation.OutputLayerActivationFunction)
         );
 
         double singleOutput = networkOutputs.Single();
