@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using ImGuiNET;
+using JetBrains.Annotations;
 using MachineLearning;
 using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
@@ -14,7 +16,8 @@ namespace Arrows;
 
 public class Simulation
 {
-    private const int NetworkInputCount = 3 + 1 + 1;
+    private const int ArrowCount = 100;
+    private const int NetworkInputCount = 4 + 1 + 1;
     private const int NetworkOutputCount = 1;
     private readonly int[] networkHiddenNeuronsCount = [10, 10];
     private readonly int[] learnerHiddenNeuronsCount = [3];
@@ -30,14 +33,14 @@ public class Simulation
 
     public ActivationFunctionType HiddenLayersActivationFunction = ActivationFunctionType.RectifiedLinearUnit;
 
-    public int NetworkCount { get; } = 100;
-    public float NetworkGain = 0.5f;
-    public NeuralNetwork[] Networks { get; private set; }
+    public float QLearnerGain = 0.5f;
+    public NeuralNetwork Network { get; private set; }
+    private Episode episode;
 
-    private QLearner learner;
+    private QLearner qLearner;
 
     public float NewTimeBetweenResets = 30f;
-    public ActivationFunctionType OutputLayerActivationFunction = ActivationFunctionType.HyperbolicTangent;
+    public ActivationFunctionType OutputLayerActivationFunction = ActivationFunctionType.Sigmoid;
 
     public bool Running;
     public bool RunningForOneFrame;
@@ -47,7 +50,6 @@ public class Simulation
 
     public Vector2 TargetPosition { get; private set; }
     public Vector2 StartingArrowPosition { get; private set; }
-    public float StartingArrowAngle { get; private set; }
     private float deltaTime;
 
     public float TimeBetweenResets { get; private set; }
@@ -68,23 +70,16 @@ public class Simulation
 
     public void Initialize()
     {
-        InitializeNetworks(NetworkCount, NetworkInputCount, NetworkOutputCount);
+        InitializeNetworks(NetworkInputCount, NetworkOutputCount);
         TargetPosition = random.NextVector2() * 0.5f * application.WindowSize + application.WindowSize * 0.25f;
         InitializeArrows();
     }
 
-    private void InitializeNetworks(int count, int inputCount, int outputCount)
+    private void InitializeNetworks(int inputCount, int outputCount)
     {
-        Networks = new NeuralNetwork[count];
-        learner = new(inputCount, learnerHiddenNeuronsCount);
-
-        NeuralNetwork network = new(random, ComputeFitness, inputCount, outputCount, networkHiddenNeuronsCount);
-        Networks[0] = network;
-
-        for (int i = 1; i < count; i++)
-        {
-            Networks[i] = new(network);
-        }
+        Network = new(random, inputCount, outputCount, networkHiddenNeuronsCount);
+        episode = new();
+        qLearner = new(inputCount, learnerHiddenNeuronsCount);
     }
 
     public const float ArrowAngleEpsilon = 1e-3f;
@@ -93,13 +88,13 @@ public class Simulation
     {
         RandomizeArrowSpawn();
 
-        Arrows = new Arrow[NetworkCount];
+        Arrows = new Arrow[ArrowCount];
 
-        for (int i = 0; i < Networks.Length; i++)
+        for (int i = 0; i < Arrows.Length; i++)
         {
-            Arrows[i] = new(StartingArrowPosition, Networks[i])
+            Arrows[i] = new(StartingArrowPosition, this)
             {
-                Angle = StartingArrowAngle + ArrowAngleEpsilon * i
+                Angle = GetRandomArrowAngle()
             };
         }
     }
@@ -107,7 +102,7 @@ public class Simulation
     public void RandomizeArrowSpawn()
     {
         StartingArrowPosition = GetRandomArrowSpawn();
-        StartingArrowAngle = GetRandomArrowAngle();
+        GetRandomArrowAngle();
     }
 
     public void Update(GameTime gameTime)
@@ -142,23 +137,21 @@ public class Simulation
         if (Running || RunningForOneFrame)
         {
             foreach (Arrow arrow in Arrows)
+            {
                 arrow.Update(deltaTime, TargetPosition);
 
-            if (TimeLeftBeforeReset <= 0f)
-            {
-                ResetSimulation(true);
-            }
-            else
-            {
-                Array.Sort(Networks);
-
-                for (int i = 0; i < NetworkCount; i++)
+                episode.Iterations.Add(new()
                 {
-                    Networks[i].LearnByGradientDescent(NetworkGain);
-                }
-
-                Array.Sort(Arrows);
+                    State = arrow.LastInputs,
+                    Actions = [arrow.LastOutput],
+                    Reward = arrow.LastRewardGain
+                });
             }
+
+            if (TimeLeftBeforeReset <= 0f)
+                ResetSimulation(true);
+            else
+                Arrows.Sort();
 
             TimeLeftBeforeReset -= deltaTime;
 
@@ -169,34 +162,23 @@ public class Simulation
 
     public void ResetSimulation(bool evolve)
     {
-        SimulationImGui.UpdateFitnessGraphsData(this);
-
-        Array.Sort(Networks);
+        SimulationImGui.UpdateRewardGraphsData(this);
 
         if (evolve)
             EvolveSimulation();
 
-        for (int i = 0; i < NetworkCount; i++)
-        {
-            Networks[i].UpdateFitness();
-        }
-
         int selectedArrowIndex = Arrows.IndexOf(SimulationImGui.SelectedArrow);
 
-        StartingArrowAngle = GetRandomArrowAngle();
-
-        for (int i = 0; i < NetworkCount; i++)
+        for (int i = 0; i < Arrows.Length; i++)
         {
-            Arrows[i] = new(StartingArrowPosition, Networks[i])
+            Arrows[i] = new(StartingArrowPosition, this)
             {
-                Angle = StartingArrowAngle + ArrowAngleEpsilon * i
+                Angle = GetRandomArrowAngle()
             };
 
             if (i == selectedArrowIndex)
                 SimulationImGui.SelectedArrow = Arrows[i];
         }
-
-        Array.Sort(Arrows);
 
         TimeBetweenResets = NewTimeBetweenResets;
         TimeLeftBeforeReset = NewTimeBetweenResets;
@@ -206,52 +188,32 @@ public class Simulation
 
     private void EvolveSimulation()
     {
-        const float BestNetworksFraction = 0.5f;
-        const float MutateFraction = 0.05f;
-
-        // Assume sorted networks array
-        NeuralNetwork[] bestNetworks = Networks[..(int) (NetworkCount / (1f / BestNetworksFraction))];
-
-        // Keep the 50% best and make them learn from their mistakes
-        foreach (NeuralNetwork network in bestNetworks)
-            network.LearnByGradientDescent(NetworkGain);
-
-        // Then create copies of the best networks and mutate 5% of them
-        for (int i = 0; i < NetworkCount; i++)
+        foreach (Iteration episodeIteration in episode.Iterations)
         {
-            Networks[i] = new(bestNetworks[i % bestNetworks.Length]);
-
-            if (i < NetworkCount / (1f / MutateFraction))
-                Networks[i].Mutate(random);
+            qLearner.LearnByGradientDescent(episodeIteration.State, episodeIteration.Reward, QLearnerGain);
         }
+
+        SimulationImGui.SelectedArrow = Arrows.First();
     }
 
-    public void SaveBestNetwork() => Arrows[0].Network.Save(SavePath);
+    public void SaveNetwork() => Arrows.First().Network.Save(SavePath);
 
     public void LoadSavedNetwork()
     {
-        NeuralNetwork saved = NeuralNetwork.Load(SavePath);
-        saved.RewardFunction = Networks.First().RewardFunction;
-
-        for (int i = 0; i < NetworkCount; i++)
-            Networks[i] = new(saved);
+        Network = NeuralNetwork.Load(SavePath);
 
         ResetSimulation(false);
     }
 
+    [MustUseReturnValue]
     private Vector2 GetRandomArrowSpawn()
         => random.NextVector2() * ((Point2) arrowSpawnBounds.Size - arrowSpawnBounds.Position) + arrowSpawnBounds.Position;
 
+    [MustUseReturnValue]
     private float GetRandomArrowAngle() => random.NextSingle() * MathHelper.TwoPi;
 
-    public const float FitnessBonusMaxDistance = 60f;
-
-    public const float FitnessBonusMaxDistanceSquared = FitnessBonusMaxDistance * FitnessBonusMaxDistance;
-
-    private double ComputeFitness(NeuralNetwork network)
+    public double ComputeReward(Arrow arrow)
     {
-        Arrow arrow = Arrows[Networks.IndexOf(network)];
-
         const float AngleFitnessValueFar = 25f;
         const float MaxAngleValueFar = MathHelper.PiOver2 * 1.5f;
 
@@ -284,5 +246,17 @@ public class Simulation
         SimulationImGui.SelectedArrow?.Render(spriteBatch, Color.Lime);
 
         spriteBatch.End();
+    }
+
+    private class Episode
+    {
+        public List<Iteration> Iterations = [];
+    }
+
+    private class Iteration
+    {
+        public double[] State;
+        public double[] Actions;
+        public double Reward;
     }
 }

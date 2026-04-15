@@ -9,7 +9,7 @@ using MonoGame.Utils.Extensions;
 
 namespace Arrows;
 
-public class Arrow
+public class Arrow : IComparable<Arrow>
 {
     private const float Speed = 100f;
     public const float MaxAngleTilting = MathHelper.TwoPi * 2f;
@@ -31,15 +31,18 @@ public class Arrow
 
     public float LastAngleTilting { get; private set; }
 
-    public bool AngleFlipped { get; private set; }
+    public double[] LastInputs { get; private set; }
+    public double LastOutput { get; private set; }
+    public double LastRewardGain { get; private set; }
 
-    private double lastOutput;
-    private double lastFitnessGain;
+    public double TotalReward { get; private set; }
 
-    public Arrow(Vector2 position, NeuralNetwork network)
+    private readonly Simulation simulation;
+
+    public Arrow(Vector2 position, Simulation simulation)
     {
         Position = position;
-        Network = network;
+        this.simulation = simulation;
     }
 
     public void Update(float deltaTime, Vector2 targetPosition)
@@ -51,7 +54,9 @@ public class Arrow
         Angle += LastAngleTilting;
         Direction = Vector2.FromAngle(Angle);
 
-        lastFitnessGain = Network.UpdateFitness();
+        LastRewardGain = Network.ComputeRewardGain(_ => simulation.ComputeReward(this));
+
+        TotalReward += LastRewardGain;
     }
 
     private void UpdatePosition(float deltaTime)
@@ -66,22 +71,23 @@ public class Arrow
         TargetDirection = difference.NormalizedCopy();
         TargetAngle = MathF.Atan2(TargetDirection.Y, TargetDirection.X) - MathHelper.Pi;
 
-        double[] networkOutputs = Network.ComputeOutputs(
-            [
-                Direction.X,
-                Direction.Y,
-                TargetDirection.X,
-                TargetDirection.Y,
+        LastInputs = [
+            Direction.X,
+            Direction.Y,
+            TargetDirection.X,
+            TargetDirection.Y,
 
-                lastOutput,
-                lastFitnessGain
-            ],
+            LastOutput,
+            LastRewardGain
+        ];
+        double[] networkOutputs = Network.ComputeOutputs(
+            LastInputs,
             ActivationFunctions.GetFromType(Application.Instance.Simulation.HiddenLayersActivationFunction),
             ActivationFunctions.GetFromType(Application.Instance.Simulation.OutputLayerActivationFunction)
         );
 
         double singleOutput = networkOutputs.Single();
-        lastOutput = singleOutput;
+        LastOutput = singleOutput;
         return (float) Math.Clamp(singleOutput, -1.0, 1.0) * MaxAngleTilting;
     }
 
@@ -95,4 +101,6 @@ public class Arrow
         SpriteEffects.None,
         0f
     );
+
+    public int CompareTo(Arrow other) => TotalReward.CompareTo(other.TotalReward);
 }

@@ -16,8 +16,6 @@ public class NeuralNetwork
 
     public static NeuralNetwork Load(string path) => Utils.LoadFromXml<NeuralNetwork>(File.ReadAllText(path));
 
-    public double Reward;
-
     [XmlIgnore]
     public RewardComputation RewardFunction;
 
@@ -252,16 +250,5 @@ public class NeuralNetwork
         return rewardDiff / Offset;
     }
 
-    /// <summary>
-    /// Updates the total <see cref="Reward"/>, returning the gain.
-    /// </summary>
-    /// <returns><code>Reward += gain; return gain;</code></returns>
-    public double UpdateFitness()
-    {
-        double gain = ComputeRewardGain();
-        Reward += gain;
-        return gain;
-    }
-
-    public void Save(string path) => File.WriteAllText(path, Utils.GetXml(this, true), new UnicodeEncoding());
+    public void Save(string path) => File.WriteAllText(path, Utils.GetXml(this, true), Encoding.Unicode);
 }

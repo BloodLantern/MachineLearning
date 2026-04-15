@@ -12,13 +12,14 @@ namespace Arrows;
 
 public static class SimulationImGui
 {
-    private const int MaxFitnessGraphSize = 100;
+    private const int MaxRewardGraphSize = 100;
 
-    private static bool showFitnessGraphs;
+    private static bool showRewardGraphs;
     private static bool showNeuralNetwork;
 
-    private static List<float> fitnessAverages = [];
-    private static List<float> fitnessMedians = [];
+    private static List<float> rewardBests = [];
+    private static List<float> rewardAverages = [];
+    private static List<float> rewardMedians = [];
 
     private static bool bestArrowSelected;
     public static Arrow SelectedArrow;
@@ -29,12 +30,12 @@ public static class SimulationImGui
 
         ImGui.SeparatorText("Settings");
 
-        ImGui.Text($"Network count: {simulation.NetworkCount}");
+        ImGui.Text($"Arrow count: {simulation.Arrows.Length}");
 
         ImGuiUtils.ComboEnum("Network hidden layers activation function", ref simulation.HiddenLayersActivationFunction);
         ImGuiUtils.ComboEnum("Network output layers activation function", ref simulation.OutputLayerActivationFunction);
 
-        ImGui.SliderFloat("Network gain", ref simulation.NetworkGain, 0f, 1f);
+        ImGui.SliderFloat("Q-Learner gain", ref simulation.QLearnerGain, 0f, 1f);
 
         if (ImGui.DragFloat("Time between resets", ref simulation.NewTimeBetweenResets, 0.1f, 1f))
             simulation.TimeLeftBeforeReset = MathF.Min(simulation.TimeLeftBeforeReset, simulation.NewTimeBetweenResets);
@@ -58,8 +59,9 @@ public static class SimulationImGui
         ImGui.Text($"FPS: {fps}");
         ImGui.Text($"Total time: {gameTime.TotalGameTime}");
         ImGui.Text($"Current iteration: {simulation.CurrentIteration}");
-        ImGui.Text($"Average fitness: {(fitnessAverages.Count > 0 ? fitnessAverages[^1] : 0f)}");
-        ImGui.Text($"Median fitness: {(fitnessMedians.Count > 0 ? fitnessMedians[^1] : 0f)}");
+        ImGui.Text($"Best reward: {(rewardBests.Count > 0 ? rewardBests[^1] : 0f)}");
+        ImGui.Text($"Average reward: {(rewardAverages.Count > 0 ? rewardAverages[^1] : 0f)}");
+        ImGui.Text($"Median reward: {(rewardMedians.Count > 0 ? rewardMedians[^1] : 0f)}");
         double simulationSpeed = simulation.SimulationSpeedUncapped ? fps / simulation.SimulationFrameRate : 1f;
         ImGui.Text($"Running at {simulationSpeed.ToString("F2", CultureInfo.CurrentCulture)}x speed");
         ImGui.Text($"{(simulationSpeed / simulation.TimeBetweenResets).ToString("F3", CultureInfo.CurrentCulture)} iterations per second");
@@ -68,7 +70,7 @@ public static class SimulationImGui
         if (ImGui.Button("Randomize arrow spawn"))
             simulation.RandomizeArrowSpawn();
         ImGui.Text($"Target position {simulation.TargetPosition}");
-        ImGui.Text($"Spawn position {simulation.StartingArrowPosition}, angle: {MathHelper.ToDegrees(simulation.StartingArrowAngle)}deg");
+        ImGui.Text($"Spawn position {simulation.StartingArrowPosition}");
 
         ImGui.SeparatorText("Actions");
 
@@ -87,12 +89,12 @@ public static class SimulationImGui
             ImGui.EndDisabled();
 
         if (ImGui.Button("Save best"))
-            simulation.SaveBestNetwork();
+            simulation.SaveNetwork();
 
         if (ImGui.Button("Load save"))
             simulation.LoadSavedNetwork();
 
-        ImGui.Checkbox("Show fitness graphs", ref showFitnessGraphs);
+        ImGui.Checkbox("Show reward graphs", ref showRewardGraphs);
 
         if (ImGui.Button("Select best arrow"))
             SelectedArrow = simulation.Arrows[0];
@@ -118,7 +120,7 @@ public static class SimulationImGui
             if (ImGui.Button("-"))
                 SelectedArrow = simulation.Arrows[(simulation.Arrows.IndexOf(SelectedArrow) + 1) % simulation.Arrows.Length];
             ImGui.SameLine();
-            ImGui.Text($"Reward {SelectedArrow.Network.Reward}");
+            ImGui.Text($"Reward {SelectedArrow.TotalReward}");
 
             ImGui.Checkbox("Show neural network", ref showNeuralNetwork);
 
@@ -128,7 +130,7 @@ public static class SimulationImGui
 
         ImGui.End();
 
-        if (showFitnessGraphs)
+        if (showRewardGraphs)
             DrawFitnessGraphWindow();
     }
 
@@ -144,46 +146,64 @@ public static class SimulationImGui
         ImGui.Begin("Reward graphs");
 
         ref float pointer = ref Unsafe.NullRef<float>();
-        if (fitnessAverages.Count > 0)
-            pointer = ref CollectionsMarshal.AsSpan(fitnessAverages)[0];
+        if (rewardBests.Count > 0)
+            pointer = ref CollectionsMarshal.AsSpan(rewardBests)[0];
+
+        ImGui.PlotLines(
+            "Best",
+            ref pointer,
+            rewardBests.Count,
+            0,
+            string.Empty,
+            float.MaxValue,
+            float.MaxValue,
+            new(ImGui.GetContentRegionAvail().X - 50f, 50f)
+        );
+
+        if (rewardAverages.Count > 0)
+            pointer = ref CollectionsMarshal.AsSpan(rewardAverages)[0];
 
         ImGui.PlotLines(
             "Average",
             ref pointer,
-            fitnessAverages.Count,
+            rewardAverages.Count,
             0,
             string.Empty,
             float.MaxValue,
             float.MaxValue,
-            ImGui.GetContentRegionAvail() * new System.Numerics.Vector2(0.8f, 0.5f)
+            new(ImGui.GetContentRegionAvail().X - 50f, 50f)
         );
 
-        if (fitnessMedians.Count > 0)
-            pointer = ref CollectionsMarshal.AsSpan(fitnessMedians)[0];
+        if (rewardMedians.Count > 0)
+            pointer = ref CollectionsMarshal.AsSpan(rewardMedians)[0];
 
         ImGui.PlotLines(
             "Median",
             ref pointer,
-            fitnessMedians.Count,
+            rewardMedians.Count,
             0,
             string.Empty,
             float.MaxValue,
             float.MaxValue,
-            ImGui.GetContentRegionAvail() * new System.Numerics.Vector2(0.8f, 1f)
+            new(ImGui.GetContentRegionAvail().X - 50f, 50f)
         );
 
         ImGui.End();
     }
 
-    public static void UpdateFitnessGraphsData(Simulation simulation)
+    public static void UpdateRewardGraphsData(Simulation simulation)
     {
-        fitnessAverages.Add((float) simulation.Networks.Average(n => n.Reward));
-        fitnessMedians.Add((float) simulation.Networks[simulation.NetworkCount / 2].Reward);
+        rewardBests.Add((float) simulation.Arrows.First().TotalReward);
+        rewardAverages.Add((float) simulation.Arrows.Average(n => n.TotalReward));
+        rewardMedians.Add((float) simulation.Arrows[simulation.Arrows.Length / 2].TotalReward);
 
-        if (fitnessAverages.Count > MaxFitnessGraphSize)
-            fitnessAverages = fitnessAverages[^MaxFitnessGraphSize..];
+        if (rewardBests.Count > MaxRewardGraphSize)
+            rewardBests = rewardBests[^MaxRewardGraphSize..];
 
-        if (fitnessMedians.Count > MaxFitnessGraphSize)
-            fitnessMedians = fitnessMedians[^MaxFitnessGraphSize..];
+        if (rewardAverages.Count > MaxRewardGraphSize)
+            rewardAverages = rewardAverages[^MaxRewardGraphSize..];
+
+        if (rewardMedians.Count > MaxRewardGraphSize)
+            rewardMedians = rewardMedians[^MaxRewardGraphSize..];
     }
 }
