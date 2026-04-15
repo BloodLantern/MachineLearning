@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using ImGuiNET;
 using JetBrains.Annotations;
 using MachineLearning;
@@ -16,7 +17,7 @@ namespace Arrows;
 
 public class Simulation
 {
-    private const int ArrowCount = 100;
+    private const int ArrowCount = 50;
     private const int NetworkInputCount = 4 + 1 + 1;
     private const int NetworkOutputCount = 1;
     private readonly int[] networkHiddenNeuronsCount = [10, 10];
@@ -28,16 +29,17 @@ public class Simulation
 
     private readonly Random random;
     public Arrow[] Arrows { get; private set; }
+    public Arrow MainArrow => Arrows.FirstOrDefault();
 
     public int CurrentIteration { get; private set; } = 1;
 
     public ActivationFunctionType HiddenLayersActivationFunction = ActivationFunctionType.RectifiedLinearUnit;
 
-    public float QLearnerGain = 0.5f;
+    public float QLearnerGain = 0.1f;
     public NeuralNetwork Network { get; private set; }
     private Episode episode;
 
-    private QLearner qLearner;
+    public QLearner QLearner { get; private set; }
 
     public float NewTimeBetweenResets = 30f;
     public ActivationFunctionType OutputLayerActivationFunction = ActivationFunctionType.Sigmoid;
@@ -55,7 +57,11 @@ public class Simulation
     public float TimeBetweenResets { get; private set; }
     public float TimeLeftBeforeReset;
 
+    public bool DrawAllArrows = true;
+
     private readonly Application application;
+
+    public bool UpdatingQLearner { get; private set; }
 
     public Simulation(Application application)
     {
@@ -79,10 +85,8 @@ public class Simulation
     {
         Network = new(random, inputCount, outputCount, networkHiddenNeuronsCount);
         episode = new();
-        qLearner = new(inputCount, learnerHiddenNeuronsCount);
+        QLearner = new(inputCount, learnerHiddenNeuronsCount);
     }
-
-    public const float ArrowAngleEpsilon = 1e-3f;
 
     private void InitializeArrows()
     {
@@ -99,14 +103,13 @@ public class Simulation
         }
     }
 
-    public void RandomizeArrowSpawn()
-    {
-        StartingArrowPosition = GetRandomArrowSpawn();
-        GetRandomArrowAngle();
-    }
+    public void RandomizeArrowSpawn() => StartingArrowPosition = GetRandomArrowSpawn();
 
     public void Update(GameTime gameTime)
     {
+        if (UpdatingQLearner)
+            return;
+
         MouseStateExtended mouse = MouseExtended.GetState();
         Vector2 mousePosition = mouse.Position.ToVector2();
 
@@ -118,46 +121,50 @@ public class Simulation
         {
             if (mouse.IsButtonDown(MouseButton.Right))
                 TargetPosition = mousePosition;
-
-            if (mouse.WasButtonJustDown(MouseButton.Left))
-            {
-                foreach (Arrow arrow in Arrows)
-                {
-                    if ((mousePosition - arrow.Position).Length() < Arrow.Size.X * 0.5f)
-                    {
-                        SimulationImGui.SelectedArrow = arrow;
-                        break;
-                    }
-
-                    SimulationImGui.SelectedArrow = null;
-                }
-            }
         }
 
-        if (Running || RunningForOneFrame)
+        if (!Running && !RunningForOneFrame)
+            return;
+
+        foreach (Arrow arrow in Arrows)
+        {
+            arrow.Update(deltaTime, TargetPosition);
+
+            episode.Iterations.Add(new()
+            {
+                State = arrow.LastInputs,
+                Actions = [arrow.LastOutput],
+                Reward = arrow.LastRewardGain,
+                EstimatedReward = QLearner.EstimateQuality(arrow.LastInputs)
+            });
+        }
+
+        if (TimeLeftBeforeReset <= 0f)
+            ResetSimulation(true);
+
+        TimeLeftBeforeReset -= deltaTime;
+
+        if (RunningForOneFrame)
+            RunningForOneFrame = false;
+    }
+
+    public void Draw(SpriteBatch spriteBatch)
+    {
+        spriteBatch.Begin();
+
+        spriteBatch.DrawCircle(TargetPosition, 10f, 20, Color.Red, 10f);
+
+        spriteBatch.DrawCircle(StartingArrowPosition, 10f, 20, Color.Green, 10f);
+
+        if (DrawAllArrows)
         {
             foreach (Arrow arrow in Arrows)
-            {
-                arrow.Update(deltaTime, TargetPosition);
-
-                episode.Iterations.Add(new()
-                {
-                    State = arrow.LastInputs,
-                    Actions = [arrow.LastOutput],
-                    Reward = arrow.LastRewardGain
-                });
-            }
-
-            if (TimeLeftBeforeReset <= 0f)
-                ResetSimulation(true);
-            else
-                Arrows.Sort();
-
-            TimeLeftBeforeReset -= deltaTime;
-
-            if (RunningForOneFrame)
-                RunningForOneFrame = false;
+                arrow.Render(spriteBatch, Color.White);
         }
+
+        MainArrow.Render(spriteBatch, Color.Lime);
+
+        spriteBatch.End();
     }
 
     public void ResetSimulation(bool evolve)
@@ -167,17 +174,12 @@ public class Simulation
         if (evolve)
             EvolveSimulation();
 
-        int selectedArrowIndex = Arrows.IndexOf(SimulationImGui.SelectedArrow);
-
         for (int i = 0; i < Arrows.Length; i++)
         {
             Arrows[i] = new(StartingArrowPosition, this)
             {
                 Angle = GetRandomArrowAngle()
             };
-
-            if (i == selectedArrowIndex)
-                SimulationImGui.SelectedArrow = Arrows[i];
         }
 
         TimeBetweenResets = NewTimeBetweenResets;
@@ -188,15 +190,20 @@ public class Simulation
 
     private void EvolveSimulation()
     {
-        foreach (Iteration episodeIteration in episode.Iterations)
+        UpdatingQLearner = true;
+        Task.Run(() =>
+            {
+                foreach (Iteration episodeIteration in episode.Iterations)
+                    QLearner.LearnByGradientDescent(episodeIteration.State, episodeIteration.Reward, QLearnerGain);
+            }
+        ).ContinueWith(_ =>
         {
-            qLearner.LearnByGradientDescent(episodeIteration.State, episodeIteration.Reward, QLearnerGain);
-        }
-
-        SimulationImGui.SelectedArrow = Arrows.First();
+            episode.Iterations.Clear();
+            return UpdatingQLearner = false;
+        });
     }
 
-    public void SaveNetwork() => Arrows.First().Network.Save(SavePath);
+    public void SaveNetwork() => Network.Save(SavePath);
 
     public void LoadSavedNetwork()
     {
@@ -212,7 +219,7 @@ public class Simulation
     [MustUseReturnValue]
     private float GetRandomArrowAngle() => random.NextSingle() * MathHelper.TwoPi;
 
-    public double ComputeReward(Arrow arrow)
+    public static double ComputeReward(Arrow arrow)
     {
         const float AngleFitnessValueFar = 25f;
         const float MaxAngleValueFar = MathHelper.PiOver2 * 1.5f;
@@ -223,34 +230,12 @@ public class Simulation
 
         result += Calc.ComputeDifference(dot, 1f, MaxAngleValueFar / MathHelper.Pi, AngleFitnessValueFar);
 
-        return result * deltaTime;
-    }
-
-    public void Draw(SpriteBatch spriteBatch)
-    {
-        spriteBatch.Begin();
-
-        spriteBatch.DrawCircle(TargetPosition, 10f, 20, Color.Red, 10f);
-
-        spriteBatch.DrawCircle(StartingArrowPosition, 10f, 20, Color.Green, 10f);
-
-        foreach (Arrow arrow in Arrows)
-        {
-            Color color = Color.White;
-            if (SimulationImGui.SelectedArrow != null && SimulationImGui.SelectedArrow != arrow)
-                color *= 0.05f;
-
-            arrow.Render(spriteBatch, color);
-        }
-
-        SimulationImGui.SelectedArrow?.Render(spriteBatch, Color.Lime);
-
-        spriteBatch.End();
+        return result;
     }
 
     private class Episode
     {
-        public List<Iteration> Iterations = [];
+        public readonly List<Iteration> Iterations = [];
     }
 
     private class Iteration
@@ -258,5 +243,6 @@ public class Simulation
         public double[] State;
         public double[] Actions;
         public double Reward;
+        public double EstimatedReward;
     }
 }

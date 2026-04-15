@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml.Serialization;
+using JetBrains.Annotations;
 
 namespace MachineLearning.Models.NeuralNetwork;
 
@@ -140,6 +141,7 @@ public class NeuralNetwork
             Layers[i].MergeLinks(goodLayers[i].Neurons, badLayers[i].Neurons);
     }
 
+    [MustUseReturnValue]
     public double[] ComputeOutputs(
         double[] inputs, ActivationFunction hiddenLayersActivationFunction, ActivationFunction outputLayerActivationFunction
     )

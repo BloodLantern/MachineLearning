@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Linq;
 using MachineLearning;
-using MachineLearning.Models.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
@@ -16,8 +15,6 @@ public class Arrow : IComparable<Arrow>
 
     public static Texture2D Texture;
     public static Vector2 Size = new(50f);
-
-    public readonly NeuralNetwork Network;
 
     public Vector2 Position { get; set; }
 
@@ -34,8 +31,10 @@ public class Arrow : IComparable<Arrow>
     public double[] LastInputs { get; private set; }
     public double LastOutput { get; private set; }
     public double LastRewardGain { get; private set; }
+    public double LastEstimatedRewardGain { get; private set; }
 
     public double TotalReward { get; private set; }
+    public double TotalEstimatedReward { get; private set; }
 
     private readonly Simulation simulation;
 
@@ -54,9 +53,11 @@ public class Arrow : IComparable<Arrow>
         Angle += LastAngleTilting;
         Direction = Vector2.FromAngle(Angle);
 
-        LastRewardGain = Network.ComputeRewardGain(_ => simulation.ComputeReward(this));
+        LastRewardGain = simulation.Network.ComputeRewardGain(_ => Simulation.ComputeReward(this));
+        LastEstimatedRewardGain = simulation.QLearner.EstimateQuality(LastInputs) * 100;
 
         TotalReward += LastRewardGain;
+        TotalEstimatedReward += LastEstimatedRewardGain;
     }
 
     private void UpdatePosition(float deltaTime)
@@ -78,12 +79,12 @@ public class Arrow : IComparable<Arrow>
             TargetDirection.Y,
 
             LastOutput,
-            LastRewardGain
+            LastRewardGain / 100.0
         ];
-        double[] networkOutputs = Network.ComputeOutputs(
+        double[] networkOutputs = simulation.Network.ComputeOutputs(
             LastInputs,
-            ActivationFunctions.GetFromType(Application.Instance.Simulation.HiddenLayersActivationFunction),
-            ActivationFunctions.GetFromType(Application.Instance.Simulation.OutputLayerActivationFunction)
+            ActivationFunctions.GetFromType(simulation.HiddenLayersActivationFunction),
+            ActivationFunctions.GetFromType(simulation.OutputLayerActivationFunction)
         );
 
         double singleOutput = networkOutputs.Single();
