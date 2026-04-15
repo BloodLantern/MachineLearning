@@ -21,7 +21,7 @@ public class Simulation
     private const int NetworkInputCount = 4 + 1 + 1;
     private const int NetworkOutputCount = 1;
     private readonly int[] networkHiddenNeuronsCount = [10, 10];
-    private readonly int[] learnerHiddenNeuronsCount = [3];
+    private readonly int[] learnerHiddenNeuronsCount = [3, 2];
 
     private const string SavePath = "network_save.xml";
 

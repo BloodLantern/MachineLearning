@@ -13,6 +13,9 @@ public class Neuron
     [XmlIgnore]
     internal double BiasGradient;
 
+    /// <summary>
+    /// Links with the previous layer's neurons. <c>.Length</c> should always be equal to <c>PreviousLayer.NeuronCount</c>.
+    /// </summary>
     public Link[] Links;
 
     [XmlIgnore]

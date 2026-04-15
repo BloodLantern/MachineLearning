@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace MachineLearning;
 
@@ -10,7 +11,7 @@ public static class ActivationFunctions
     private static readonly Random randomInstance = new();
     public static ActivationFunction GetRandom() => GetRandom(randomInstance);
 
-    public static ActivationFunction GetRandom(Random random) => Functions[random.Next(Functions.Length)];
+    public static ActivationFunction GetRandom(Random random) => Functions[random.Next(Functions.Count)];
 
     public static ActivationFunction GetFromType(ActivationFunctionType type) => type switch
     {
@@ -54,5 +55,7 @@ public static class ActivationFunctions
     /// </summary>
     public static readonly ActivationFunction RectifiedLinearUnit = value => Math.Max(0, value);
 
-    public static readonly ActivationFunction[] Functions = [Step, Sigmoid, HyperbolicTangent, RectifiedLinearUnit];
+    private static readonly ActivationFunction[] functions = [Step, Sigmoid, HyperbolicTangent, RectifiedLinearUnit];
+
+    public static IReadOnlyList<ActivationFunction> Functions => functions;
 }

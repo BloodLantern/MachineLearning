@@ -15,7 +15,6 @@ public class QLearner
     public QLearner(Random random, int inputCount, params int[] hiddenLayerSizes)
         => Network = new(random, inputCount, 1, hiddenLayerSizes);
 
-    [MustUseReturnValue]
     public double EstimateQuality(double[] state)
         => Network.ComputeOutputs(state, ActivationFunctions.RectifiedLinearUnit, ActivationFunctions.Sigmoid).Single();
 

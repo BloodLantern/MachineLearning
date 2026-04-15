@@ -141,7 +141,6 @@ public class NeuralNetwork
             Layers[i].MergeLinks(goodLayers[i].Neurons, badLayers[i].Neurons);
     }
 
-    [MustUseReturnValue]
     public double[] ComputeOutputs(
         double[] inputs, ActivationFunction hiddenLayersActivationFunction, ActivationFunction outputLayerActivationFunction
     )
@@ -194,7 +193,7 @@ public class NeuralNetwork
     {
         Debug.Assert(double.IsFinite(gain));
 
-        ComputeOutputs(inputs, hiddenLayersActivationFunction, outputLayerActivationFunction);
+        _ = ComputeOutputs(inputs, hiddenLayersActivationFunction, outputLayerActivationFunction);
 
         for (int i = 0; i < OutputLayer.NeuronCount; i++)
         {
