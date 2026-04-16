@@ -39,6 +39,5 @@ public class Link
     public void Learn(NeuralNetwork network, double originalReward, NeuralNetwork.RewardComputation rewardFunction)
         => WeightGradient = network.ComputeRewardDifference(originalReward, ref Weight, rewardFunction);
 
-    public void ApplyGradients(double learnRate)
-        => Weight = WeightGradient * learnRate;
+    public void ApplyGradients(double learnRate) => Weight -= WeightGradient * learnRate;
 }
