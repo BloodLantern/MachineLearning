@@ -40,5 +40,5 @@ public class Link
         => WeightGradient = network.ComputeRewardDifference(originalReward, ref Weight, rewardFunction);
 
     public void ApplyGradients(double learnRate)
-        => Weight += Math.Clamp(WeightGradient, -10.0, 10.0) * learnRate;
+        => Weight = WeightGradient * learnRate;
 }

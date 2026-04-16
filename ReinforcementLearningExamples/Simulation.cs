@@ -135,7 +135,7 @@ public class Simulation
                 State = arrow.LastInputs,
                 Actions = [arrow.LastOutput],
                 Reward = arrow.LastRewardGain,
-                EstimatedReward = QLearner.EstimateQuality(arrow.LastInputs)
+                EstimatedReward = QLearner.EstimateReward(arrow.LastInputs)
             });
         }
 

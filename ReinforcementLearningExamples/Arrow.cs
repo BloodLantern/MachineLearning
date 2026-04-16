@@ -54,7 +54,7 @@ public class Arrow : IComparable<Arrow>
         Direction = Vector2.FromAngle(Angle);
 
         LastRewardGain = simulation.Network.ComputeRewardGain(_ => Simulation.ComputeReward(this));
-        LastEstimatedRewardGain = simulation.QLearner.EstimateQuality(LastInputs) * 100;
+        LastEstimatedRewardGain = simulation.QLearner.EstimateReward(LastInputs) * 100;
 
         TotalReward += LastRewardGain;
         TotalEstimatedReward += LastEstimatedRewardGain;

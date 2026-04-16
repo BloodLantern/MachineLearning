@@ -15,15 +15,23 @@ public class QLearner
     public QLearner(Random random, int inputCount, params int[] hiddenLayerSizes)
         => Network = new(random, inputCount, 1, hiddenLayerSizes);
 
-    public double EstimateQuality(double[] state)
-        => Network.ComputeOutputs(state, ActivationFunctions.RectifiedLinearUnit, ActivationFunctions.Sigmoid).Single();
+    public double EstimateReward(double[] state)
+        => Network.ComputeOutputs(state, ActivationFunctions.Sigmoid, ActivationFunctions.Sigmoid).Single();
 
     public void LearnByGradientDescent(double[] state, double actualReward, double gain)
         => Network.LearnByGradientDescent(gain, _ => -ComputeLoss(state, actualReward));
 
     private double ComputeLoss(double[] state, double actualReward)
     {
-        double error = actualReward - EstimateQuality(state);
+        double error = EstimateReward(state) - actualReward;
         return error * error;
+    }
+
+    private double ComputeLossDerivative(double[] state, double actualReward) => 2.0 * (EstimateReward(state) - actualReward);
+
+    private double SigmoidDerivative(double value)
+    {
+        double activation = ActivationFunctions.Sigmoid(value);
+        return activation * (1.0 - activation);
     }
 }
