@@ -13,6 +13,8 @@ public class Layer
 
     public int PreviousLayerNeuronCount => Neurons.First().InputCount;
 
+    public ActivationFunction ActivationFunction;
+
     public Neuron this[int index] => Neurons[index];
 
     public Layer() { }
@@ -58,10 +60,10 @@ public class Layer
             Neurons[i].MergeLinks(goodNeurons[i].Links, badNeurons[i].Links);
     }
 
-    public void FeedForward(ActivationFunction activationFunction)
+    public void FeedForward()
     {
         foreach (Neuron neuron in Neurons)
-            neuron.FeedForward(activationFunction);
+            neuron.FeedForward(ActivationFunction);
     }
 
     public void Mutate(Random random)

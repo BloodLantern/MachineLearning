@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml.Serialization;
-using JetBrains.Annotations;
 
 namespace MachineLearning.Models.NeuralNetwork;
 
@@ -107,8 +106,8 @@ public class NeuralNetwork
 
         Layers[0] = new(inputCount);
         for (int i = 0; i < hiddenLayerSizes.Length; i++)
-            Layers[i + 1] = new(hiddenLayerSizes[i]);
-        Layers[^1] = new(outputCount);
+            Layers[i + 1] = new(hiddenLayerSizes[i]) { ActivationFunction = ActivationFunctions.RectifiedLinearUnit };
+        Layers[^1] = new(outputCount) { ActivationFunction = ActivationFunctions.Sigmoid };
     }
 
     private void InitNeurons()
@@ -141,9 +140,15 @@ public class NeuralNetwork
             Layers[i].MergeLinks(goodLayers[i].Neurons, badLayers[i].Neurons);
     }
 
-    public double[] ComputeOutputs(
-        double[] inputs, ActivationFunction hiddenLayersActivationFunction, ActivationFunction outputLayerActivationFunction
-    )
+    public void SetHiddenLayersActivationFunction(ActivationFunction activationFunction)
+    {
+        foreach (Layer layer in HiddenLayers)
+            layer.ActivationFunction = activationFunction;
+    }
+
+    public void SetOutputLayerActivationFunction(ActivationFunction activationFunction) => OutputLayer.ActivationFunction = activationFunction;
+
+    public double[] ComputeOutputs(double[] inputs)
     {
         if (inputs.Length != Layers[0].NeuronCount)
             throw new ArgumentException("Inputs array has the wrong size");
@@ -152,9 +157,9 @@ public class NeuralNetwork
             Layers[0].Neurons[i].Output = inputs[i];
 
         for (int i = 1; i < Layers.Length - 1; i++)
-            Layers[i].FeedForward(hiddenLayersActivationFunction);
+            Layers[i].FeedForward();
 
-        OutputLayer.FeedForward(outputLayerActivationFunction);
+        OutputLayer.FeedForward();
 
         Neuron[] lastLayerNeurons = OutputLayer.Neurons;
         double[] result = new double[lastLayerNeurons.Length];
@@ -163,6 +168,10 @@ public class NeuralNetwork
             result[i] = lastLayerNeurons[i].Output;
 
         return result;
+    }
+
+    private double[] ComputeOutputs(double[] inputs, LearnData learnData, ActivationFunction hiddenLayersActivationFunction, ActivationFunction outputLayerActivationFunction)
+    {
     }
 
     public void Mutate(Random random)
@@ -186,14 +195,11 @@ public class NeuralNetwork
             Layers[i].ApplyGradients(gain);
     }
 
-    public void LearnByBackpropagation(
-        double gain, double[] inputs, double[] expectedOutputs, ActivationFunction hiddenLayersActivationFunction,
-        ActivationFunction outputLayerActivationFunction
-    )
+    public void LearnByBackpropagation(double gain, double[] inputs, double[] expectedOutputs)
     {
         Debug.Assert(double.IsFinite(gain));
 
-        _ = ComputeOutputs(inputs, hiddenLayersActivationFunction, outputLayerActivationFunction);
+        _ = ComputeOutputs(inputs);
 
         for (int i = 0; i < OutputLayer.NeuronCount; i++)
         {
@@ -222,6 +228,51 @@ public class NeuralNetwork
         }
     }
 
+    internal class LearnData
+    {
+        public LayerLearnData[] Layers;
+
+        public LearnData(Layer[] layers)
+        {
+            Layers = new LayerLearnData[layers.Length];
+            for (int i = 0; i < Layers.Length; i++)
+            {
+                Layers[i] = new(layers[i]);
+            }
+        }
+    }
+
+    internal class LayerLearnData
+    {
+        public double[] Inputs;
+        public double[] WeightedInputs;
+        public double[] Activations;
+        public double[] NeuronOutputs;
+
+        public LayerLearnData(Layer layer)
+        {
+            Inputs = new double[layer.PreviousLayerNeuronCount];
+            WeightedInputs = new double[layer.NeuronCount];
+            Activations = new double[layer.NeuronCount];
+            NeuronOutputs = new double[layer.NeuronCount];
+        }
+    }
+
+    public void Learn(double[] inputs, double[] expectedOutputs, double gain, double regularization = 0.0, double momentum = 0.0)
+    {
+        LearnData learnData = new(Layers);
+
+        UpdateGradients(inputs, expectedOutputs, learnData);
+
+        foreach (Layer layer in Layers)
+            layer.ApplyGradients(gain, regularization, momentum);
+    }
+
+    private void UpdateGradients(double[] inputs, double[] expectedOutputs, LearnData learnData)
+    {
+        double[] outputs = ComputeOutputs(inputs, learnData, ActivationFunctions.Sigmoid, ActivationFunctions.Sigmoid);
+    }
+
     public double ComputeRewardGain()
     {
         if (RewardFunction == null)
@@ -236,6 +287,28 @@ public class NeuralNetwork
     }
 
     public double ComputeRewardGain(RewardComputation rewardFunction) => rewardFunction(this);
+
+    public double ComputeCost(double[] inputs, double[] expectedOutputs)
+    {
+        double[] outputs = ComputeOutputs(inputs);
+        return ComputeOutputCost(outputs, expectedOutputs);
+    }
+
+    internal static double ComputeOutputCost(double[] outputs, double[] expectedOutputs)
+    {
+        Debug.Assert(outputs.Length == expectedOutputs.Length);
+
+        double cost = 0.0;
+        for (int i = 0; i < outputs.Length; i++)
+            cost += ComputeCost(outputs[i], expectedOutputs[i]);
+        return cost;
+    }
+
+    internal static double ComputeCost(double output, double expectedOutput)
+    {
+        double error = output - expectedOutput;
+        return error * error;
+    }
 
     internal double ComputeRewardDifference(double originalRewardGain, ref double value)
         => ComputeRewardDifference(originalRewardGain, ref value, RewardFunction);
