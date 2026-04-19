@@ -153,12 +153,10 @@ public class NeuralNetwork : ICloneable
             return false;
         if (ReferenceEquals(this, obj))
             return true;
-        if (obj.GetType() != GetType())
-            return false;
-        return Equals((NeuralNetwork) obj);
+        return obj.GetType() == GetType() && Equals((NeuralNetwork) obj);
     }
 
-    public override int GetHashCode() => (Layers != null ? Layers.GetHashCode() : 0);
+    public override int GetHashCode() => Layers != null ? Layers.GetHashCode() : 0;
 
     public static bool operator==(NeuralNetwork left, NeuralNetwork right) => Equals(left, right);
 
@@ -166,8 +164,8 @@ public class NeuralNetwork : ICloneable
 
     public class TrainingData
     {
-        public double[] Inputs;
-        public double[] ExpectedOutputs;
+        public readonly double[] Inputs;
+        public readonly double[] ExpectedOutputs;
 
         public TrainingData(double[] inputs, double[] expectedOutputs)
         {
@@ -178,7 +176,7 @@ public class NeuralNetwork : ICloneable
 
     internal class LearnData
     {
-        public Layer.LearnData[] Layers;
+        public readonly Layer.LearnData[] Layers;
 
         public LearnData(Layer[] layers)
         {

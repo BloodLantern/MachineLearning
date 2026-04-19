@@ -12,9 +12,12 @@ public class QLearner
 #endif
 
     public QLearner(Random random, int inputCount, params int[] hiddenLayerSizes)
-        => Network = new(random, inputCount, 1, hiddenLayerSizes);
+    {
+        Network = new(random, inputCount, 1, hiddenLayerSizes);
+        Network.SetOutputLayerActivationFunction(IActivation.FromType(ActivationFunctionType.HyperbolicTangent));
+    }
 
-    public double EstimateReward(double[] state) => Network.ComputeOutputs(state).Single() * 2.0 - 1.0;
+    public double EstimateReward(double[] state) => Network.ComputeOutputs(state).Single();
 
     public void Learn(NeuralNetwork.TrainingData[] trainingData, double gain) => Network.Learn(trainingData, gain);
 }

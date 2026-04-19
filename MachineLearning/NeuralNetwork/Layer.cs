@@ -241,9 +241,9 @@ public class Layer : ICloneable
     internal class LearnData
     {
         public double[] Inputs;
-        public double[] WeightedInputs;
-        public double[] Activations;
-        public double[] NeuronValues;
+        public readonly double[] WeightedInputs;
+        public readonly double[] Activations;
+        public readonly double[] NeuronValues;
 
         public LearnData(Layer layer)
         {
