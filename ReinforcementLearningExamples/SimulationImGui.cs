@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using ImGuiNET;
-using MachineLearning;
+using MachineLearning.MonoGame;
 using MachineLearning.NeuralNetwork;
 using Microsoft.Xna.Framework;
 
@@ -29,7 +29,8 @@ public static class SimulationImGui
         ImGui.Text($"Arrow count: {simulation.Arrows.Length}");
         ImGui.Checkbox("Draw all arrows", ref simulation.DrawAllArrows);
 
-        ImGui.SliderFloat("Q-Learner gain", ref simulation.QLearnerGain, 0f, 1f);
+        ImGui.SliderDouble("Q-Learner gain", ref simulation.QLearnerGain, 0.0, 1.0);
+        ImGui.SliderDouble("Q-Learner discount factor", ref simulation.QLearnerDiscountFactor, 0.0, 1.0);
 
         if (ImGui.DragFloat("Time between resets", ref simulation.NewTimeBetweenResets, 0.1f, 1f))
             simulation.TimeLeftBeforeReset = MathF.Min(simulation.TimeLeftBeforeReset, simulation.NewTimeBetweenResets);

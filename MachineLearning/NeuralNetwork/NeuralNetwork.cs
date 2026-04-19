@@ -74,13 +74,14 @@ public class NeuralNetwork : ICloneable
         Layers[^1] = new(hiddenLayerSizes[^1], outputCount, random) { ActivationFunctionType = DefaultOutputLayerActivationFunctionType };
     }
 
-    public void SetHiddenLayersActivationFunction(IActivation activationFunction)
+    public void SetHiddenLayersActivationFunction(ActivationFunctionType activationFunctionType)
     {
         foreach (Layer layer in HiddenLayers)
-            layer.ActivationFunction = activationFunction;
+            layer.ActivationFunction = IActivation.FromType(activationFunctionType);
     }
 
-    public void SetOutputLayerActivationFunction(IActivation activationFunction) => OutputLayer.ActivationFunction = activationFunction;
+    public void SetOutputLayerActivationFunction(ActivationFunctionType activationFunctionType)
+        => OutputLayer.ActivationFunction = IActivation.FromType(activationFunctionType);
 
     public double[] ComputeOutputs(double[] inputs)
     {

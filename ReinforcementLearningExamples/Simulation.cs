@@ -33,11 +33,12 @@ public class Simulation
 
     public int CurrentIteration { get; private set; } = 1;
 
-    public float QLearnerGain = 0.1f;
+    public double QLearnerGain = 0.1;
+    public double QLearnerDiscountFactor = 0.9;
     public NeuralNetwork Network { get; private set; }
     private Episode episode;
 
-    public QLearner QLearner { get; private set; }
+    public DeepQLearner QLearner { get; private set; }
 
     public float NewTimeBetweenResets = 30f;
 
@@ -49,10 +50,11 @@ public class Simulation
 
     public Vector2 TargetPosition { get; private set; }
     public Vector2 StartingArrowPosition { get; private set; }
-    private float deltaTime;
+    private const float DeltaTime = 1f / 60f;
 
     public float TimeBetweenResets { get; private set; }
     public float TimeLeftBeforeReset;
+    public int IterationCount => (int) Math.Round(TimeBetweenResets / DeltaTime);
 
     public bool DrawAllArrows = true;
 
@@ -110,8 +112,6 @@ public class Simulation
         MouseStateExtended mouse = MouseExtended.GetState();
         Vector2 mousePosition = mouse.Position.ToVector2();
 
-        deltaTime = SimulationSpeedUncapped ? 1f / 60f : gameTime.GetElapsedSeconds();
-
         // If the mouse is inside the game window
         if (!ImGui.GetIO().WantCaptureMouse && new Rectangle(Point.Zero, application.WindowSize.ToPoint()).Contains(mouse.Position))
         {
@@ -124,7 +124,7 @@ public class Simulation
 
         foreach (Arrow arrow in Arrows)
         {
-            arrow.Update(deltaTime, TargetPosition);
+            arrow.Update(DeltaTime, TargetPosition);
 
             episode.Iterations.Add(new()
             {
@@ -138,7 +138,7 @@ public class Simulation
         if (TimeLeftBeforeReset <= 0f)
             ResetSimulation(true);
 
-        TimeLeftBeforeReset -= deltaTime;
+        TimeLeftBeforeReset -= DeltaTime;
 
         if (RunningForOneFrame)
             RunningForOneFrame = false;
@@ -228,6 +228,22 @@ public class Simulation
         float dot = Vector2.Dot(angleDirection, arrow.TargetDirection);
 
         result += Calc.ComputeDifference(dot, 1f, MaxAngleValueFar / MathHelper.Pi, AngleFitnessValueFar);
+
+        return result;
+    }
+
+    private double EstimateFutureReward(double lastReward, int lastIteration)
+    {
+        double result = 0.0;
+
+        double lastEstimate = lastReward;
+        double discount = 1.0;
+        for (int i = lastIteration; i < IterationCount; i++)
+        {
+            lastEstimate = discount * lastEstimate;
+            result += lastEstimate;
+            discount *= QLearnerDiscountFactor;
+        }
 
         return result;
     }
