@@ -4,8 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using ImGuiNET;
 using JetBrains.Annotations;
-using MachineLearning;
-using MachineLearning.Models.NeuralNetwork;
+using MachineLearning.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
@@ -17,6 +16,7 @@ namespace Arrows;
 
 public class Simulation
 {
+    public const double MaxReward = 100.0;
     private const int ArrowCount = 50;
     private const int NetworkInputCount = 4 + 1 + 1;
     private const int NetworkOutputCount = 1;
@@ -33,8 +33,6 @@ public class Simulation
 
     public int CurrentIteration { get; private set; } = 1;
 
-    public ActivationFunctionType HiddenLayersActivationFunction = ActivationFunctionType.RectifiedLinearUnit;
-
     public float QLearnerGain = 0.1f;
     public NeuralNetwork Network { get; private set; }
     private Episode episode;
@@ -42,12 +40,11 @@ public class Simulation
     public QLearner QLearner { get; private set; }
 
     public float NewTimeBetweenResets = 30f;
-    public ActivationFunctionType OutputLayerActivationFunction = ActivationFunctionType.Sigmoid;
 
     public bool Running;
     public bool RunningForOneFrame;
 
-    public float SimulationFrameRate = 20f;
+    public float SimulationFrameRate = 300f;
     public bool SimulationSpeedUncapped;
 
     public Vector2 TargetPosition { get; private set; }
@@ -113,11 +110,10 @@ public class Simulation
         MouseStateExtended mouse = MouseExtended.GetState();
         Vector2 mousePosition = mouse.Position.ToVector2();
 
-        deltaTime = SimulationSpeedUncapped ? 1f / SimulationFrameRate : gameTime.GetElapsedSeconds();
+        deltaTime = SimulationSpeedUncapped ? 1f / 60f : gameTime.GetElapsedSeconds();
 
-        // If mouse is inside the game window
-        if (!ImGui.GetIO().WantCaptureMouse &&
-            new Rectangle(Point.Zero, application.WindowSize.ToPoint()).Contains(mouse.Position))
+        // If the mouse is inside the game window
+        if (!ImGui.GetIO().WantCaptureMouse && new Rectangle(Point.Zero, application.WindowSize.ToPoint()).Contains(mouse.Position))
         {
             if (mouse.IsButtonDown(MouseButton.Right))
                 TargetPosition = mousePosition;
@@ -191,16 +187,19 @@ public class Simulation
     private void EvolveSimulation()
     {
         UpdatingQLearner = true;
+
         Task.Run(() =>
-            {
-                foreach (Iteration episodeIteration in episode.Iterations)
-                    QLearner.LearnByGradientDescent(episodeIteration.State, episodeIteration.Reward, QLearnerGain);
-            }
-        ).ContinueWith(_ =>
-        {
-            episode.Iterations.Clear();
-            return UpdatingQLearner = false;
-        });
+                QLearner.Learn(
+                    episode.Iterations.Select(i => new NeuralNetwork.TrainingData(i.State, [i.Reward / MaxReward])).ToArray(),
+                    QLearnerGain
+                )
+            )
+            .ContinueWith(_ =>
+                {
+                    episode.Iterations.Clear();
+                    return UpdatingQLearner = false;
+                }
+            );
     }
 
     public void SaveNetwork() => Network.Save(SavePath);

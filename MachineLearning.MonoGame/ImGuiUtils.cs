@@ -2,7 +2,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using ImGuiNET;
-using MachineLearning.Models.NeuralNetwork;
+using MachineLearning.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using MonoGame.Utils;
 using MonoGame.Utils.Extensions;
@@ -13,8 +13,8 @@ namespace MachineLearning;
 public static class ImGuiUtils
 {
     private static bool mouseHoverLink;
-    private static readonly Color GoodLinkColor = Color.Green;
-    private static readonly Color BadLinkColor = Color.Red;
+    private static readonly Color PositiveLinkColor = Color.Green;
+    private static readonly Color NegativeLinkColor = Color.Red;
     public static void GridPlotting(string label, ref Vector2 value) => GridPlotting(label, ref value, -1f, 1f);
 
     public static void GridPlotting(string label, ref Vector2 value, float min, float max)
@@ -214,9 +214,9 @@ public static class ImGuiUtils
         value.Y *= -1; // In 2D, the Y axis goes downwards
     }
 
-    public static void DisplayNeuralNetwork(NeuralNetwork network) => DisplayNeuralNetwork(network, new(600f, 600f));
+    public static void DisplayNeuralNetwork(NeuralNetwork.NeuralNetwork network) => DisplayNeuralNetwork(network, new(600f, 600f));
 
-    public static void DisplayNeuralNetwork(NeuralNetwork network, Vector2 givenSize)
+    public static void DisplayNeuralNetwork(NeuralNetwork.NeuralNetwork network, Vector2 givenSize)
     {
         NVector2 size = givenSize.ToNumerics();
         NVector2 padding = ImGui.GetStyle().FramePadding;
@@ -229,7 +229,7 @@ public static class ImGuiUtils
         NVector2 basePosition = ImGui.GetWindowPos() + new NVector2(25f, 35f);
         NVector2 mousePosition = ImGui.GetMousePos();
 
-        Link hoveredLink = null;
+        (Layer, int)? hoveredLinkIndex = null;
         NVector2 hoveredLinkOriginPosition = NVector2.Zero;
         NVector2 hoveredLinkDestinationPosition = NVector2.Zero;
 
@@ -243,8 +243,8 @@ public static class ImGuiUtils
             float layerPositionX = layerSpacing * i - padding.X;
             float previousLayerPositionX = layerSpacing * (i - 1) - padding.X;
 
-            Neuron[] neurons = layer.Neurons;
-            Neuron[] previousNeurons = previousLayer?.Neurons;
+            double[] neurons = layer.Biases;
+            double[] previousNeurons = previousLayer?.Biases;
 
             float neuronSpacing = (size.Y + padding.Y * (neurons.Length - 1)) / neurons.Length;
             float previousNeuronSpacing = (size.Y + padding.Y * (previousNeurons?.Length - 1)) / previousNeurons?.Length ?? 0f;
@@ -253,15 +253,14 @@ public static class ImGuiUtils
 
             for (int j = 0; j < neurons.Length; j++)
             {
-                Neuron neuron = neurons[j];
-
                 float neuronOffsetY = -padding.Y + size.Y / neurons.Length * 0.5f;
                 float neuronPositionY = neuronSpacing * j + neuronOffsetY;
                 NVector2 neuronPosition = basePosition + new NVector2(layerPositionX + layerWidth * 0.5f, neuronPositionY + layerWidth * 0.5f);
 
                 for (int k = 0; k < previousNeurons?.Length; k++)
                 {
-                    Link link = neuron.Links[k];
+                    int linkIndex = layer.GetWeightIndex(k, j);
+                    double link = layer.Weights[linkIndex];
                     float previousNeuronPositionY = previousNeuronSpacing * k + previousNeuronOffsetY;
                     NVector2 previousNeuronPosition = basePosition + new NVector2(
                         previousLayerPositionX + layerWidth * 0.5f,
@@ -270,33 +269,30 @@ public static class ImGuiUtils
 
                     if (Calc.LineIntersects(previousNeuronPosition, neuronPosition, mousePosition))
                     {
-                        hoveredLink = link;
+                        hoveredLinkIndex = (layer, linkIndex);
                         hoveredLinkOriginPosition = previousNeuronPosition;
                         hoveredLinkDestinationPosition = neuronPosition;
                         continue;
                     }
 
-                    Color color = link.Weight > 0.0 ? GoodLinkColor : BadLinkColor;
-                    if (link.Mutated)
-                        color = Color.Yellow;
-                    Color weightColor = Color.Lerp(new(color, 0f), color, (float) Math.Abs(link.Weight) * (mouseHoverLink ? 0.25f : 1f));
+                    Color color = link > 0.0 ? PositiveLinkColor : NegativeLinkColor;
+                    Color weightColor = Color.Lerp(new(color, 0f), color, (float) Math.Abs(link) * (mouseHoverLink ? 0.25f : 1f));
 
                     drawList.AddLine(previousNeuronPosition, neuronPosition, weightColor.PackedValue);
                 }
             }
         }
 
-        mouseHoverLink = hoveredLink != null;
+        mouseHoverLink = hoveredLinkIndex != null;
 
         if (mouseHoverLink)
         {
-            Color color = hoveredLink!.Weight > 0.0 ? GoodLinkColor : BadLinkColor;
-            if (hoveredLink.Mutated)
-                color = Color.Yellow;
+            double link = hoveredLinkIndex!.Value.Item1.Weights[hoveredLinkIndex.Value.Item2];
+            Color color = link > 0.0 ? PositiveLinkColor : NegativeLinkColor;
 
             drawList.AddLine(hoveredLinkOriginPosition, hoveredLinkDestinationPosition, color.PackedValue);
 
-            string text = hoveredLink.Weight.ToString("F2", CultureInfo.InvariantCulture);
+            string text = link.ToString("F2", CultureInfo.InvariantCulture);
             NVector2 textSize = ImGui.CalcTextSize(text);
             drawList.AddText(
                 hoveredLinkOriginPosition + (hoveredLinkDestinationPosition - hoveredLinkOriginPosition) * 0.5f - textSize * 0.5f,
@@ -311,44 +307,43 @@ public static class ImGuiUtils
 
             float layerPositionX = layerSpacing * i - padding.X;
 
-            Neuron[] neurons = layer.Neurons;
+            double[] neurons = layer.Biases;
 
             float neuronSpacing = (size.Y + padding.Y * (neurons.Length - 1)) / neurons.Length;
 
             for (int j = 0; j < neurons.Length; j++)
             {
-                Neuron neuron = neurons[j];
+                double neuron = neurons[j];
 
                 float neuronOffsetY = -padding.Y + size.Y / neurons.Length * 0.5f;
                 float neuronPositionY = neuronSpacing * j + neuronOffsetY;
                 NVector2 neuronPosition = basePosition + new NVector2(layerPositionX + layerWidth * 0.5f, neuronPositionY + layerWidth * 0.5f);
 
                 drawList.AddCircleFilled(neuronPosition, layerWidth * 0.5f, Color.Green.PackedValue);
-                string text = neuron.Output.ToString("F2", CultureInfo.InvariantCulture);
+                string text = neuron.ToString("F2", CultureInfo.InvariantCulture);
                 NVector2 textSize = ImGui.CalcTextSize(text);
                 drawList.AddText(neuronPosition - textSize * 0.5f, Color.White.PackedValue, text);
             }
         }
     }
 
-    [SuppressMessage("ReSharper", "InvertIf")]
     public static bool ComboEnum<T>(string label, ref T currentValue) where T : struct, Enum
     {
+        if (!ImGui.BeginCombo(label, Enum.GetName(currentValue)))
+            return false;
+
         bool result = false;
 
-        if (ImGui.BeginCombo(label, Enum.GetName(currentValue)))
+        foreach (T gate in Enum.GetValues<T>())
         {
-            foreach (T gate in Enum.GetValues<T>())
-            {
-                if (ImGui.Selectable(Enum.GetName(gate)))
-                {
-                    currentValue = gate;
-                    result = true;
-                }
-            }
+            if (!ImGui.Selectable(Enum.GetName(gate)))
+                continue;
 
-            ImGui.EndCombo();
+            currentValue = gate;
+            result = true;
         }
+
+        ImGui.EndCombo();
 
         return result;
     }

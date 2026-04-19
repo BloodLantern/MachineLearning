@@ -49,9 +49,11 @@ public class Application : Game
         Window.AllowUserResizing = true;
         WindowSize = new(1600, 900);
 
-        IsFixedTimeStep = false;
         InactiveSleepTime = TimeSpan.Zero;
+
+        IsFixedTimeStep = false;
         Graphics.SynchronizeWithVerticalRetrace = true;
+        Graphics.ApplyChanges();
 
         Simulation = new(this);
     }

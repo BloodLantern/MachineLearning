@@ -62,4 +62,6 @@ public static class Utils
     }
 
     public static float BoolToFloat(bool value) => value ? 1f : 0f;
+
+    public static bool Approximately(double a, double b, double tolerance = 1e-5) => Math.Abs(a - b) < tolerance;
 }

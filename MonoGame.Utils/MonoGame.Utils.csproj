@@ -10,7 +10,7 @@
     <ItemGroup>
       <PackageReference Include="ImGui.NET" Version="1.90.6.1" />
       <PackageReference Include="MonoGame.Extended" Version="3.9.0-prerelease.4" />
-      <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.1.303" />
+      <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.4.1" />
     </ItemGroup>
 
 </Project>

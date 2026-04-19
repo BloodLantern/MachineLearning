@@ -1,61 +1,133 @@
 ﻿using System;
-using System.Collections.Generic;
 
 namespace MachineLearning;
 
-[Serializable]
-public delegate double ActivationFunction(double value);
+// Most of the code in this file is from https://github.com/SebLague/Neural-Network-Experiments/blob/main/Assets/Scripts/Neural%20Network/Activation/Activation.cs
 
-public static class ActivationFunctions
+public enum ActivationFunctionType
 {
-    private static readonly Random randomInstance = new();
-    public static ActivationFunction GetRandom() => GetRandom(randomInstance);
-
-    public static ActivationFunction GetRandom(Random random) => Functions[random.Next(Functions.Count)];
-
-    public static ActivationFunction GetFromType(ActivationFunctionType type) => type switch
-    {
-        ActivationFunctionType.Step => Step,
-        ActivationFunctionType.Sigmoid => Sigmoid,
-        ActivationFunctionType.HyperbolicTangent => HyperbolicTangent,
-        ActivationFunctionType.RectifiedLinearUnit => RectifiedLinearUnit,
-        _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
-    };
-
-    public static ActivationFunctionType GetTypeFrom(ActivationFunction activationFunction)
-    {
-        if (activationFunction == Step)
-            return ActivationFunctionType.Step;
-        if (activationFunction == Sigmoid)
-            return ActivationFunctionType.Sigmoid;
-        if (activationFunction == HyperbolicTangent)
-            return ActivationFunctionType.HyperbolicTangent;
-        if (activationFunction == RectifiedLinearUnit)
-            return ActivationFunctionType.RectifiedLinearUnit;
-        throw new ArgumentException(null, nameof(activationFunction));
-    }
-
     /// <summary>
     /// Output range: [0, 1]
     /// </summary>
-    public static readonly ActivationFunction Step = value => value < 0.0 ? 0.0 : 1.0;
-
-    /// <summary>
-    /// Output range: [0, 1]
-    /// </summary>
-    public static readonly ActivationFunction Sigmoid = value => 1.0 / (1.0 + Math.Exp(-value));
-
+    Sigmoid,
     /// <summary>
     /// Output range: [-1, 1]
     /// </summary>
-    public static readonly ActivationFunction HyperbolicTangent = Math.Tanh;
-
+    HyperbolicTangent,
     /// <summary>
     /// Output range: [0, 1]
     /// </summary>
-    public static readonly ActivationFunction RectifiedLinearUnit = value => Math.Max(0, value);
+    RectifiedLinearUnit,
+    SigmoidLinearUnit,
+    Softmax
+}
 
-    private static readonly ActivationFunction[] functions = [Step, Sigmoid, HyperbolicTangent, RectifiedLinearUnit];
+public interface IActivation
+{
+    ActivationFunctionType ActivationFunctionType { get; }
 
-    public static IReadOnlyList<ActivationFunction> Functions => functions;
+    double ComputeActivation(double[] inputs, int index);
+
+    double ComputeActivationDerivative(double[] inputs, int index);
+
+    public static IActivation FromType(ActivationFunctionType type) => type switch
+    {
+        ActivationFunctionType.Sigmoid => new SigmoidActivation(),
+        ActivationFunctionType.HyperbolicTangent => new HyperbolicTangentActivation(),
+        ActivationFunctionType.RectifiedLinearUnit => new RectifiedLinearUnitActivation(),
+        ActivationFunctionType.SigmoidLinearUnit => new SigmoidLinearUnitActivation(),
+        ActivationFunctionType.Softmax => new SoftmaxActivation(),
+        _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
+    };
+}
+
+public class SigmoidActivation : IActivation
+{
+    public ActivationFunctionType ActivationFunctionType => ActivationFunctionType.Sigmoid;
+
+    public double ComputeActivation(double[] inputs, int index) => 1.0 / (1.0 + Math.Exp(-inputs[index]));
+
+    public double ComputeActivationDerivative(double[] inputs, int index)
+    {
+        double a = ComputeActivation(inputs, index);
+        return a * (1.0 - a);
+    }
+}
+
+public class HyperbolicTangentActivation : IActivation
+{
+    public ActivationFunctionType ActivationFunctionType => ActivationFunctionType.HyperbolicTangent;
+
+    public double ComputeActivation(double[] inputs, int index)
+    {
+        double e2 = Math.Exp(2.0 * inputs[index]);
+        return (e2 - 1.0) / (e2 + 1.0);
+    }
+
+    public double ComputeActivationDerivative(double[] inputs, int index)
+    {
+        double e2 = Math.Exp(2.0 * inputs[index]);
+        double t = (e2 - 1.0) / (e2 + 1.0);
+        return 1.0 - t * t;
+    }
+}
+
+
+public class RectifiedLinearUnitActivation : IActivation
+{
+    public ActivationFunctionType ActivationFunctionType => ActivationFunctionType.RectifiedLinearUnit;
+
+    public double ComputeActivation(double[] inputs, int index)
+    {
+        return Math.Max(0.0, inputs[index]);
+    }
+
+    public double ComputeActivationDerivative(double[] inputs, int index)
+    {
+        return inputs[index] > 0.0 ? 1.0 : 0.0;
+    }
+}
+
+public class SigmoidLinearUnitActivation : IActivation
+{
+    public ActivationFunctionType ActivationFunctionType => ActivationFunctionType.SigmoidLinearUnit;
+
+    public double ComputeActivation(double[] inputs, int index)
+    {
+        return inputs[index] / (1.0 + Math.Exp(-inputs[index]));
+    }
+
+    public double ComputeActivationDerivative(double[] inputs, int index)
+    {
+        double sig = 1.0 / (1.0 + Math.Exp(-inputs[index]));
+        return inputs[index] * sig * (1.0 - sig) + sig;
+    }
+}
+
+
+public class SoftmaxActivation : IActivation
+{
+    public ActivationFunctionType ActivationFunctionType => ActivationFunctionType.Softmax;
+
+    public double ComputeActivation(double[] inputs, int index)
+    {
+        double expSum = 0.0;
+        foreach (double input in inputs)
+            expSum += Math.Exp(input);
+
+        double res = Math.Exp(inputs[index]) / expSum;
+
+        return res;
+    }
+
+    public double ComputeActivationDerivative(double[] inputs, int index)
+    {
+        double expSum = 0.0;
+        foreach (double input in inputs)
+            expSum += Math.Exp(input);
+
+        double ex = Math.Exp(inputs[index]);
+
+        return (ex * expSum - ex * ex) / (expSum * expSum);
+    }
 }

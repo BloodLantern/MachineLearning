@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using ImGuiNET;
 using MachineLearning;
-using MachineLearning.Models.NeuralNetwork;
+using MachineLearning.NeuralNetwork;
 using Microsoft.Xna.Framework;
 
 namespace Arrows;
@@ -28,15 +28,14 @@ public static class SimulationImGui
         ImGui.Text($"Arrow count: {simulation.Arrows.Length}");
         ImGui.Checkbox("Draw all arrows", ref simulation.DrawAllArrows);
 
-        ImGuiUtils.ComboEnum("Network hidden layers activation function", ref simulation.HiddenLayersActivationFunction);
-        ImGuiUtils.ComboEnum("Network output layers activation function", ref simulation.OutputLayerActivationFunction);
-
         ImGui.SliderFloat("Q-Learner gain", ref simulation.QLearnerGain, 0f, 1f);
 
         if (ImGui.DragFloat("Time between resets", ref simulation.NewTimeBetweenResets, 0.1f, 1f))
             simulation.TimeLeftBeforeReset = MathF.Min(simulation.TimeLeftBeforeReset, simulation.NewTimeBetweenResets);
         if (ImGui.Checkbox("Uncap FPS", ref simulation.SimulationSpeedUncapped))
         {
+            Application.Instance.TargetElapsedTime = TimeSpan.FromSeconds(1.0 / simulation.SimulationFrameRate);
+            Application.Instance.IsFixedTimeStep = simulation.SimulationSpeedUncapped;
             Application.Instance.Graphics.SynchronizeWithVerticalRetrace = !simulation.SimulationSpeedUncapped;
             Application.Instance.Graphics.ApplyChanges();
         }
@@ -44,7 +43,8 @@ public static class SimulationImGui
         if (!simulation.SimulationSpeedUncapped)
             ImGui.BeginDisabled();
 
-        ImGui.SliderFloat("Simulation FPS", ref simulation.SimulationFrameRate, 5f, 300f);
+        if (ImGui.SliderFloat("Simulation FPS", ref simulation.SimulationFrameRate, 60f, 3000f))
+            Application.Instance.TargetElapsedTime = TimeSpan.FromSeconds(1.0 / simulation.SimulationFrameRate);
 
         if (!simulation.SimulationSpeedUncapped)
             ImGui.EndDisabled();
@@ -60,7 +60,7 @@ public static class SimulationImGui
         ImGui.Text($"FPS: {fps}");
         ImGui.Text($"Total time: {gameTime.TotalGameTime}");
         ImGui.Text($"Current iteration: {simulation.CurrentIteration}");
-        double simulationSpeed = simulation.SimulationSpeedUncapped ? fps / simulation.SimulationFrameRate : 1f;
+        double simulationSpeed = simulation.SimulationSpeedUncapped ? fps / 60.0 : 1.0;
         ImGui.Text($"Running at {simulationSpeed.ToString("F2", CultureInfo.CurrentCulture)}x speed");
         ImGui.Text($"{(simulationSpeed / simulation.TimeBetweenResets).ToString("F3", CultureInfo.CurrentCulture)} iterations per second");
 
@@ -123,7 +123,7 @@ public static class SimulationImGui
 
     private static void DrawNeuralNetworkWindow(NeuralNetwork network)
     {
-        ImGui.Begin("Neural Network");
+        ImGui.Begin($"Neural Network##{network.GetHashCode()}");
         ImGuiUtils.DisplayNeuralNetwork(network);
         ImGui.End();
     }

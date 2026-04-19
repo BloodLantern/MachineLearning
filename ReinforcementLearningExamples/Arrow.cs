@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-using MachineLearning;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
@@ -53,8 +52,8 @@ public class Arrow : IComparable<Arrow>
         Angle += LastAngleTilting;
         Direction = Vector2.FromAngle(Angle);
 
-        LastRewardGain = simulation.Network.ComputeRewardGain(_ => Simulation.ComputeReward(this));
-        LastEstimatedRewardGain = simulation.QLearner.EstimateReward(LastInputs) * 100;
+        LastRewardGain = Simulation.ComputeReward(this);
+        LastEstimatedRewardGain = simulation.QLearner.EstimateReward(LastInputs) * Simulation.MaxReward;
 
         TotalReward += LastRewardGain;
         TotalEstimatedReward += LastEstimatedRewardGain;
@@ -81,13 +80,8 @@ public class Arrow : IComparable<Arrow>
             LastOutput,
             LastRewardGain / 100.0
         ];
-        double[] networkOutputs = simulation.Network.ComputeOutputs(
-            LastInputs,
-            ActivationFunctions.GetFromType(simulation.HiddenLayersActivationFunction),
-            ActivationFunctions.GetFromType(simulation.OutputLayerActivationFunction)
-        );
 
-        double singleOutput = networkOutputs.Single();
+        double singleOutput = simulation.Network.ComputeOutputs(LastInputs).Single();
         LastOutput = singleOutput;
         return (float) Math.Clamp(singleOutput, -1.0, 1.0) * MaxAngleTilting;
     }
