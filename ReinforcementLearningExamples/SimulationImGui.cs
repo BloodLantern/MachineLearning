@@ -131,7 +131,7 @@ public static class SimulationImGui
 
     private static void DrawFitnessGraphWindow()
     {
-        ImGui.Begin("Reward graphs");
+        ImGui.Begin("Graphs");
 
         (List<float>, string)[] graphs = [
             (rewardMedians, nameof(rewardMedians)),
