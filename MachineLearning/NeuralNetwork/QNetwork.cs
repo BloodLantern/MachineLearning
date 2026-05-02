@@ -22,6 +22,12 @@ public class QNetwork
     [XmlIgnore]
     public NeuralNetwork Target { get; private set; }
 
+    public int InputCount => Online.InputCount;
+
+    public int HiddenLayerCount => Online.HiddenLayerCount;
+
+    public int OutputNeuronCount => Online.OutputCount;
+
     [XmlAttribute]
     public double DiscountFactor = 0.99;
 
