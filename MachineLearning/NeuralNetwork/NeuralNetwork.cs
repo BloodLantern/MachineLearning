@@ -1,7 +1,5 @@
 ﻿using System;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using JetBrains.Annotations;
@@ -16,8 +14,6 @@ public class NeuralNetwork : ICloneable
 {
     private const ActivationFunctionType DefaultHiddenLayerActivationFunctionType = ActivationFunctionType.RectifiedLinearUnit;
     private const ActivationFunctionType DefaultOutputLayerActivationFunctionType = ActivationFunctionType.Sigmoid;
-
-    public static NeuralNetwork Load(string path) => Utils.LoadFromXml<NeuralNetwork>(File.ReadAllText(path));
 
     [XmlElement]
     public Layer[] Layers;
@@ -147,8 +143,6 @@ public class NeuralNetwork : ICloneable
             hiddenLayer.UpdateGradients(hiddenLayerLearnData);
         }
     }
-
-    public void Save(string path) => File.WriteAllText(path, Utils.GetXml(this, true), Encoding.Unicode);
 
     public object Clone() => new NeuralNetwork
     {

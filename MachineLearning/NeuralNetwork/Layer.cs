@@ -116,12 +116,14 @@ public class Layer : ICloneable
     // Also resets the gradients to zero.
     internal void ApplyGradients(double gain, double regularization, double momentum)
     {
+        const double GradientCap = 10.0;
+
         double weightDecay = 1.0 - regularization * gain;
 
         for (int i = 0; i < Weights.Length; i++)
         {
             double weight = Weights[i];
-            double velocity = WeightVelocities[i] * momentum - WeightCostGradients[i] * gain;
+            double velocity = WeightVelocities[i] * momentum - Math.Clamp(WeightCostGradients[i], -GradientCap, GradientCap) * gain;
             WeightVelocities[i] = velocity;
             Weights[i] = weight * weightDecay + velocity;
             WeightCostGradients[i] = 0.0;
@@ -129,7 +131,7 @@ public class Layer : ICloneable
 
         for (int i = 0; i < Biases.Length; i++)
         {
-            double velocity = BiasVelocities[i] * momentum - BiasCostGradients[i] * gain;
+            double velocity = BiasVelocities[i] * momentum - Math.Clamp(BiasCostGradients[i], -GradientCap, GradientCap) * gain;
             BiasVelocities[i] = velocity;
             Biases[i] += velocity;
             BiasCostGradients[i] = 0.0;

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using MachineLearning.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
@@ -84,14 +85,14 @@ public class Arrow : IComparable<Arrow>
         double[] qualities = simulation.QNetwork.ComputeActionQualities(LastInputs);
         double[] outputs = simulation.QNetwork.ShouldExplore() ? simulation.QNetwork.ComputeExplorationQualities() : qualities;
 
-        LastOutputs = qualities;
+        LastOutputs = outputs;
         LastQualityAverage = qualities.Average();
 
         float result = 0f;
 
-        if (simulation.QNetwork.IsActionChosen(outputs[0]))
+        if (QNetwork.IsActionChosen(outputs[0]))
             result -= AngleTilting;
-        if (simulation.QNetwork.IsActionChosen(outputs[1]))
+        if (QNetwork.IsActionChosen(outputs[1]))
             result += AngleTilting;
 
         return result;

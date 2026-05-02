@@ -7,7 +7,8 @@ namespace MachineLearning;
 public enum CostFunctionType
 {
     MeanSquaredError,
-    CrossEntropy
+    CrossEntropy,
+    Huber
 }
 
 public interface ICost
@@ -22,6 +23,7 @@ public interface ICost
     {
         CostFunctionType.MeanSquaredError => new MeanSquaredErrorCost(),
         CostFunctionType.CrossEntropy => new CrossEntropyCost(),
+        CostFunctionType.Huber => new HuberCost(),
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
     };
 }
@@ -53,6 +55,45 @@ public class MeanSquaredErrorCost : ICost
     }
 
     public double ComputeCostDerivative(double predictedOutput, double expectedOutput) => predictedOutput - expectedOutput;
+}
+
+/// <summary>
+/// Huber loss (smooth L1). Behaves like MSE for small errors (|e| &lt;= delta)
+/// and like MAE for large errors (|e| &gt; delta), capping the gradient at delta.
+/// </summary>
+public class HuberCost : ICost
+{
+    /// <summary>
+    /// The threshold below which the loss is quadratic.
+    /// </summary>
+    public double Delta = 1.0;
+
+    public CostFunctionType CostFunctionType => CostFunctionType.Huber;
+
+    public double ComputeCost(double[] predictedOutputs, double[] expectedOutputs)
+    {
+        double cost = 0.0;
+        for (int i = 0; i < predictedOutputs.Length; i++)
+        {
+            double error = predictedOutputs[i] - expectedOutputs[i];
+            double absError = Math.Abs(error);
+            cost += absError <= Delta
+                ? 0.5 * error * error
+                : Delta * (absError - 0.5 * Delta);
+        }
+        return cost;
+    }
+
+    public double[] ComputeCostDerivative(double[] predictedOutputs, double[] expectedOutputs)
+    {
+        double[] results = new double[predictedOutputs.Length];
+        for (int i = 0; i < results.Length; i++)
+        {
+            double error = predictedOutputs[i] - expectedOutputs[i];
+            results[i] = Math.Abs(error) <= Delta ? error : Delta * Math.Sign(error);
+        }
+        return results;
+    }
 }
 
 public class CrossEntropyCost : ICost

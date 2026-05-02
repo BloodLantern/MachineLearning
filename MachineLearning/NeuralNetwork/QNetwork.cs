@@ -1,33 +1,39 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Xml.Serialization;
 using JetBrains.Annotations;
 
 namespace MachineLearning.NeuralNetwork;
 
+[Serializable]
 [PublicAPI]
 public class QNetwork
 {
     /// <summary>
     /// The current neural network used to compute the action qualities.
     /// </summary>
-    public NeuralNetwork Online { get; }
+    [XmlElement]
+    public NeuralNetwork Online { get; set; }
 
     /// <summary>
     /// A previous version of the <see cref="Online"/> network used to compute the cost.
     /// </summary>
+    [XmlIgnore]
     public NeuralNetwork Target { get; private set; }
 
+    [XmlAttribute]
     public double DiscountFactor = 0.99;
 
+    [XmlAttribute]
     public double ExplorationProbability = 0.95;
 
-    public double ActionChosenThreshold = 0.5;
+    public QNetwork() { }
 
     public QNetwork(Random random, int inputCount, int outputCount, params int[] hiddenLayerSizes)
     {
-        Online = new(random, CostFunctionType.MeanSquaredError, inputCount, outputCount, hiddenLayerSizes);
-        Online.SetOutputLayerActivationFunction(ActivationFunctionType.Sigmoid);
+        Online = new(random, CostFunctionType.Huber, inputCount, outputCount, hiddenLayerSizes);
+        Online.SetOutputLayerActivationFunction(ActivationFunctionType.Linear);
         UpdateTargetNetwork();
     }
 
@@ -48,7 +54,7 @@ public class QNetwork
     {
         double[] result = new double[Online.OutputCount];
         for (int i = 0; i < result.Length; i++)
-            result[i] = random.NextDouble();
+            result[i] = random.NextDouble() - 0.5;
         return result;
     }
 
@@ -63,7 +69,7 @@ public class QNetwork
     public bool[] ChooseActions(double[] state) => ChooseActions(state, Random.Shared);
 #endif
 
-    public bool IsActionChosen(double quality) => quality >= ActionChosenThreshold;
+    public static bool IsActionChosen(double quality) => quality > 0.0;
 
     public void UpdateTargetNetwork() => Target = (NeuralNetwork) Online.Clone();
 
@@ -84,7 +90,7 @@ public class QNetwork
     {
         private readonly QNetwork qNetwork;
 
-        private readonly MeanSquaredErrorCost cost = new();
+        private readonly HuberCost cost = new();
 
         private double[] targetResults;
 
@@ -100,12 +106,12 @@ public class QNetwork
             double[] results = new double[targetActions.Length];
 
             for (int i = 0; i < targetActions.Length; i++)
-                results[i] = qNetwork.IsActionChosen(trainingData.ExpectedOutputs[i]) ? trainingData.Reward + qNetwork.DiscountFactor * targetActions[i] : onlineActions[i];
+                results[i] = IsActionChosen(trainingData.ExpectedOutputs[i]) ? trainingData.Reward + qNetwork.DiscountFactor * targetActions[i] : onlineActions[i];
 
             return results;
         }
 
-        CostFunctionType ICost.CostFunctionType => CostFunctionType.MeanSquaredError;
+        CostFunctionType ICost.CostFunctionType => CostFunctionType.Huber;
 
         // Here predictedOutputs are the outputs of the target network
         public double ComputeCost(double[] predictedOutputs, double[] expectedOutputs)

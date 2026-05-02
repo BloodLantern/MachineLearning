@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using ImGuiNET;
 using JetBrains.Annotations;
+using MachineLearning;
 using MachineLearning.NeuralNetwork;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -194,17 +195,13 @@ public class Simulation
         if (CurrentIteration % 5 == 0)
             QNetwork.UpdateTargetNetwork();
 
-        QNetwork.ExplorationProbability *= 0.975;
+        QNetwork.ExplorationProbability = Math.Max(QNetwork.ExplorationProbability * 0.985, 0.1);
         CurrentIteration++;
     }
 
     private void EvolveSimulation()
     {
         UpdatingQLearner = true;
-
-        bool wasUncapped = SimulationSpeedUncapped;
-        SimulationSpeedUncapped = false;
-        Application.Instance.UpdateUncappedFpsState();
 
         Task.Run(() =>
             {
@@ -221,12 +218,7 @@ public class Simulation
 
                 AddNewEpisode();
             })
-            .ContinueWith(_ =>
-            {
-                SimulationSpeedUncapped = wasUncapped;
-                Application.Instance.UpdateUncappedFpsState();
-                return Task.Delay(500).ContinueWith(_ => UpdatingQLearner = false);
-            });
+            .ContinueWith(_ => UpdatingQLearner = false);
     }
 
     private void AddNewEpisode()
@@ -237,11 +229,12 @@ public class Simulation
         episodes.Add(ep);
     }
 
-    public void SaveNetwork() => QNetwork.Online.Save(SavePath);
+    public void SaveNetwork() => QNetwork.Serialize(SavePath);
 
     public void LoadSavedNetwork()
     {
-        // QNetwork.Online = NeuralNetwork.Load(SavePath);
+        QNetwork = QNetwork.Deserialize(SavePath);
+        QNetwork.UpdateTargetNetwork();
 
         ResetSimulation(false);
     }

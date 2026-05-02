@@ -10,7 +10,7 @@ namespace Arrows;
 
 public static class SimulationImGui
 {
-    private const int MaxRewardGraphSize = 100;
+    private const int MaxRewardGraphSize = 200;
 
     private static bool showRewardGraphs;
     private static bool showNeuralNetwork;
@@ -87,7 +87,7 @@ public static class SimulationImGui
         if (simulation.Running)
             ImGui.EndDisabled();
 
-        if (ImGui.Button("Save best"))
+        if (ImGui.Button("Save"))
             simulation.SaveNetwork();
 
         if (ImGui.Button("Load save"))
