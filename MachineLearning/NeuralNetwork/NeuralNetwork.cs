@@ -4,12 +4,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
+using JetBrains.Annotations;
 
 namespace MachineLearning.NeuralNetwork;
 
 // TODO - Add binary serialization
 
 [Serializable]
+[PublicAPI]
 public class NeuralNetwork : ICloneable
 {
     private const ActivationFunctionType DefaultHiddenLayerActivationFunctionType = ActivationFunctionType.RectifiedLinearUnit;
@@ -24,7 +26,7 @@ public class NeuralNetwork : ICloneable
 
     public int HiddenLayerCount => Layers.Length - 1;
 
-    public int OutputCount => OutputLayer.PreviousLayerNeuronCount;
+    public int OutputCount => OutputLayer.NeuronCount;
 
     [XmlIgnore]
     public ICost CostFunction;
@@ -66,7 +68,7 @@ public class NeuralNetwork : ICloneable
     {
         Layers = new Layer[hiddenLayerSizes.Length + 1];
 
-        Layers[0] = new(inputCount, hiddenLayerSizes[0], random);
+        Layers[0] = new(inputCount, hiddenLayerSizes[0], random) { ActivationFunctionType = DefaultHiddenLayerActivationFunctionType };
 
         for (int i = 1; i < Layers.Length - 1; i++)
             Layers[i] = new(hiddenLayerSizes[i - 1], hiddenLayerSizes[i], random) { ActivationFunctionType = DefaultHiddenLayerActivationFunctionType };
@@ -105,7 +107,7 @@ public class NeuralNetwork : ICloneable
         return inputs;
     }
 
-    public void Learn(TrainingData[] trainingData, double gain, double regularization = 0.1, double momentum = 0.9)
+    public void Learn(TrainingData[] trainingData, double gain, ICost[] cost = null, double regularization = 0.1, double momentum = 0.9)
     {
         if (batchLearnData == null || batchLearnData.Length != trainingData.Length)
         {
@@ -114,18 +116,26 @@ public class NeuralNetwork : ICloneable
                 batchLearnData[i] = new(Layers);
         }
 
-        Parallel.For(0, trainingData.Length, i => UpdateGradients(trainingData[i], batchLearnData[i]));
+        Parallel.For(0, trainingData.Length, i => UpdateGradients(trainingData[i], batchLearnData[i], cost != null ? cost[i] : CostFunction));
 
         foreach (Layer layer in Layers)
             layer.ApplyGradients(gain / trainingData.Length, regularization, momentum);
     }
 
-    private void UpdateGradients(TrainingData trainingData, LearnData learnData)
+    public void Learn(TrainingData trainingData, double gain, ICost cost = null, double regularization = 0.1, double momentum = 0.9)
+    {
+        UpdateGradients(trainingData, new(Layers), cost ?? CostFunction);
+
+        foreach (Layer layer in Layers)
+            layer.ApplyGradients(gain, regularization, momentum);
+    }
+
+    private void UpdateGradients(TrainingData trainingData, LearnData learnData, ICost cost)
     {
         _ = ComputeOutputs(trainingData.Inputs, learnData);
 
         Layer.LearnData outputLayerLearnData = learnData.Layers.Last();
-        OutputLayer.ComputeOutputLayerNeuronValues(outputLayerLearnData, trainingData.ExpectedOutputs, CostFunction);
+        OutputLayer.ComputeOutputLayerNeuronValues(outputLayerLearnData, trainingData.ExpectedOutputs, cost);
         OutputLayer.UpdateGradients(outputLayerLearnData);
 
         for (int i = HiddenLayerCount - 1; i >= 0; i--)
@@ -167,15 +177,19 @@ public class NeuralNetwork : ICloneable
     {
         public readonly double[] Inputs;
         public readonly double[] ExpectedOutputs;
+        public readonly double Reward;
+        public readonly double[] NextInputs;
 
-        public TrainingData(double[] inputs, double[] expectedOutputs)
+        public TrainingData(double[] inputs, double[] expectedOutputs, double reward, double[] nextInputs)
         {
             Inputs = inputs;
             ExpectedOutputs = expectedOutputs;
+            Reward = reward;
+            NextInputs = nextInputs;
         }
     }
 
-    internal class LearnData
+    private class LearnData
     {
         public readonly Layer.LearnData[] Layers;
 

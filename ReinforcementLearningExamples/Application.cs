@@ -78,7 +78,7 @@ public class Application : Game
 
     protected override void Update(GameTime gameTime)
     {
-        Simulation.Update(gameTime);
+        Simulation.Update();
 
         base.Update(gameTime);
     }
@@ -94,5 +94,13 @@ public class Application : Game
         imGuiRenderer.BeginLayout(gameTime);
         SimulationImGui.DrawImGui(Simulation, gameTime);
         imGuiRenderer.EndLayout();
+    }
+
+    public void UpdateUncappedFpsState()
+    {
+        TargetElapsedTime = TimeSpan.FromSeconds(1.0 / Simulation.SimulationFrameRate);
+        IsFixedTimeStep = Simulation.SimulationSpeedUncapped;
+        Graphics.SynchronizeWithVerticalRetrace = !Simulation.SimulationSpeedUncapped;
+        Graphics.ApplyChanges();
     }
 }

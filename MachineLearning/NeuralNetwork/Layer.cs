@@ -136,20 +136,20 @@ public class Layer : ICloneable
         }
     }
 
-    // Calculate the "node values" for the output layer. This is an array containing for each node:
+    // Calculate the "neuron values" for the output layer. This is an array containing for each neuron:
     // the partial derivative of the cost with respect to the weighted input
     internal void ComputeOutputLayerNeuronValues(LearnData learnData, double[] expectedOutputs, ICost costFunction)
     {
+        // Evaluate partial derivatives for current neuron: cost/activation & activation/weightedInput
+        double[] costDerivatives = costFunction.ComputeCostDerivative(learnData.Activations, expectedOutputs);
         for (int i = 0; i < learnData.NeuronValues.Length; i++)
         {
-            // Evaluate partial derivatives for current node: cost/activation & activation/weightedInput
-            double costDerivative = costFunction.ComputeCostDerivative(learnData.Activations[i], expectedOutputs[i]);
             double activationDerivative = ActivationFunction.ComputeActivationDerivative(learnData.WeightedInputs, i);
-            learnData.NeuronValues[i] = costDerivative * activationDerivative;
+            learnData.NeuronValues[i] = costDerivatives[i] * activationDerivative;
         }
     }
 
-    // Calculate the "node values" for a hidden layer. This is an array containing for each node:
+    // Calculate the "neuron values" for a hidden layer. This is an array containing for each neuron:
     // the partial derivative of the cost with respect to the weighted input
     internal void ComputeHiddenLayerNeuronValues(LearnData learnData, Layer oldLayer, double[] oldNeuronValues)
     {

@@ -17,11 +17,10 @@ namespace Arrows;
 public class Simulation
 {
     public const double MaxReward = 100.0;
-    private const int ArrowCount = 50;
-    private const int NetworkInputCount = 4 + 1 + 1;
-    private const int NetworkOutputCount = 1;
+    public const int ArrowCount = 50;
+    public const int NetworkInputCount = 4 + NetworkOutputCount + 1;
+    public const int NetworkOutputCount = 2;
     private readonly int[] networkHiddenNeuronsCount = [10, 10];
-    private readonly int[] learnerHiddenNeuronsCount = [3, 2];
 
     private const string SavePath = "network_save.xml";
 
@@ -33,12 +32,11 @@ public class Simulation
 
     public int CurrentIteration { get; private set; } = 1;
 
-    public double QLearnerGain = 0.1;
-    public double QLearnerDiscountFactor = 0.9;
-    public NeuralNetwork Network { get; private set; }
-    private Episode episode;
+    public double QNetworkGain = 0.1;
+    private List<Episode[]> episodes;
+    private Episode[] CurrentEpisode => episodes.Last();
 
-    public DeepQLearner QLearner { get; private set; }
+    public QNetwork QNetwork { get; private set; }
 
     public float NewTimeBetweenResets = 30f;
 
@@ -82,9 +80,10 @@ public class Simulation
 
     private void InitializeNetworks(int inputCount, int outputCount)
     {
-        Network = new(random, inputCount, outputCount, networkHiddenNeuronsCount);
-        episode = new();
-        QLearner = new(inputCount, learnerHiddenNeuronsCount);
+        episodes = [];
+        QNetwork = new(random, inputCount, outputCount, networkHiddenNeuronsCount);
+
+        AddNewEpisode();
     }
 
     private void InitializeArrows()
@@ -104,7 +103,7 @@ public class Simulation
 
     public void RandomizeArrowSpawn() => StartingArrowPosition = GetRandomArrowSpawn();
 
-    public void Update(GameTime gameTime)
+    public void Update()
     {
         if (UpdatingQLearner)
             return;
@@ -122,17 +121,28 @@ public class Simulation
         if (!Running && !RunningForOneFrame)
             return;
 
-        foreach (Arrow arrow in Arrows)
+        for (int i = 0; i < Arrows.Length; i++)
         {
+            Arrow arrow = Arrows[i];
             arrow.Update(DeltaTime, TargetPosition);
 
-            episode.Iterations.Add(new()
-            {
-                State = arrow.LastInputs,
-                Actions = [arrow.LastOutput],
-                Reward = arrow.LastRewardGain,
-                EstimatedReward = QLearner.EstimateReward(arrow.LastInputs)
-            });
+            Episode episode = CurrentEpisode[i];
+
+            if (episode.Iterations.Count > 0)
+                episode.Iterations.Last().NextState = arrow.LastInputs;
+
+            // Don't add the current iteration if it is the last one
+            if (TimeLeftBeforeReset <= 0f)
+                continue;
+
+            episode.Iterations.Add(
+                new()
+                {
+                    State = arrow.LastInputs,
+                    Actions = arrow.LastOutputs,
+                    Reward = arrow.LastRewardGain
+                }
+            );
         }
 
         if (TimeLeftBeforeReset <= 0f)
@@ -181,6 +191,10 @@ public class Simulation
         TimeBetweenResets = NewTimeBetweenResets;
         TimeLeftBeforeReset = NewTimeBetweenResets;
 
+        if (CurrentIteration % 5 == 0)
+            QNetwork.UpdateTargetNetwork();
+
+        QNetwork.ExplorationProbability *= 0.975;
         CurrentIteration++;
     }
 
@@ -188,25 +202,46 @@ public class Simulation
     {
         UpdatingQLearner = true;
 
+        bool wasUncapped = SimulationSpeedUncapped;
+        SimulationSpeedUncapped = false;
+        Application.Instance.UpdateUncappedFpsState();
+
         Task.Run(() =>
-                QLearner.Learn(
-                    episode.Iterations.Select(i => new NeuralNetwork.TrainingData(i.State, [i.Reward / MaxReward])).ToArray(),
-                    QLearnerGain
-                )
-            )
-            .ContinueWith(_ =>
+            {
+                const int TrainingIterationCount = 50000;
+                List<Iteration> trainingData = new(TrainingIterationCount);
+
+                while (trainingData.Count < TrainingIterationCount)
                 {
-                    episode.Iterations.Clear();
-                    return UpdatingQLearner = false;
+                    Episode episode = episodes.Random(random).Random(random);
+                    trainingData.AddRange(random.GetItems(episode.Iterations.ToArray(), random.Next(1, TrainingIterationCount - trainingData.Count)));
                 }
-            );
+
+                QNetwork.Learn(trainingData.Select(i => (NeuralNetwork.TrainingData) i).ToArray(), QNetworkGain);
+
+                AddNewEpisode();
+            })
+            .ContinueWith(_ =>
+            {
+                SimulationSpeedUncapped = wasUncapped;
+                Application.Instance.UpdateUncappedFpsState();
+                return Task.Delay(500).ContinueWith(_ => UpdatingQLearner = false);
+            });
     }
 
-    public void SaveNetwork() => Network.Save(SavePath);
+    private void AddNewEpisode()
+    {
+        Episode[] ep = new Episode[ArrowCount];
+        for (int i = 0; i < ep.Length; i++)
+            ep[i] = new();
+        episodes.Add(ep);
+    }
+
+    public void SaveNetwork() => QNetwork.Online.Save(SavePath);
 
     public void LoadSavedNetwork()
     {
-        Network = NeuralNetwork.Load(SavePath);
+        // QNetwork.Online = NeuralNetwork.Load(SavePath);
 
         ResetSimulation(false);
     }
@@ -223,29 +258,18 @@ public class Simulation
         const float AngleFitnessValueFar = 25f;
         const float MaxAngleValueFar = MathHelper.PiOver2 * 1.5f;
 
-        float result = 0f;
-        Vector2 angleDirection = Vector2.FromAngle(arrow.Angle);
-        float dot = Vector2.Dot(angleDirection, arrow.TargetDirection);
+        float currentAngle = arrow.Angle;
+        float lastAngle = arrow.Angle - arrow.LastAngleTilting;
 
-        result += Calc.ComputeDifference(dot, 1f, MaxAngleValueFar / MathHelper.Pi, AngleFitnessValueFar);
+        return ComputeAngleReward(currentAngle, arrow.TargetDirection) - ComputeAngleReward(lastAngle, arrow.TargetDirection);
 
-        return result;
-    }
-
-    private double EstimateFutureReward(double lastReward, int lastIteration)
-    {
-        double result = 0.0;
-
-        double lastEstimate = lastReward;
-        double discount = 1.0;
-        for (int i = lastIteration; i < IterationCount; i++)
+        float ComputeAngleReward(float angle, Vector2 targetDirection)
         {
-            lastEstimate = discount * lastEstimate;
-            result += lastEstimate;
-            discount *= QLearnerDiscountFactor;
-        }
+            Vector2 angleDirection = Vector2.FromAngle(angle);
+            float dot = Vector2.Dot(angleDirection, targetDirection);
 
-        return result;
+            return Calc.ComputeDifference(dot, 1f, MaxAngleValueFar / MathHelper.Pi, AngleFitnessValueFar);
+        }
     }
 
     private class Episode
@@ -258,6 +282,9 @@ public class Simulation
         public double[] State;
         public double[] Actions;
         public double Reward;
-        public double EstimatedReward;
+        public double[] NextState;
+
+        public static explicit operator NeuralNetwork.TrainingData(Iteration iteration)
+            => new(iteration.State, iteration.Actions, iteration.Reward, iteration.NextState);
     }
 }

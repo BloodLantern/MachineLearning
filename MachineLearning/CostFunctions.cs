@@ -16,7 +16,7 @@ public interface ICost
 
     double ComputeCost(double[] predictedOutputs, double[] expectedOutputs);
 
-    double ComputeCostDerivative(double predictedOutput, double expectedOutput);
+    double[] ComputeCostDerivative(double[] predictedOutputs, double[] expectedOutputs);
 
     public static ICost FromType(CostFunctionType type) => type switch
     {
@@ -44,6 +44,14 @@ public class MeanSquaredErrorCost : ICost
         return 0.5 * cost;
     }
 
+    public double[] ComputeCostDerivative(double[] predictedOutputs, double[] expectedOutputs)
+    {
+        double[] results = new double[predictedOutputs.Length];
+        for (int i = 0; i < results.Length; i++)
+            results[i] = ComputeCostDerivative(predictedOutputs[i], expectedOutputs[i]);
+        return results;
+    }
+
     public double ComputeCostDerivative(double predictedOutput, double expectedOutput) => predictedOutput - expectedOutput;
 }
 
@@ -64,6 +72,14 @@ public class CrossEntropyCost : ICost
         }
 
         return cost;
+    }
+
+    public double[] ComputeCostDerivative(double[] predictedOutputs, double[] expectedOutputs)
+    {
+        double[] results = new double[predictedOutputs.Length];
+        for (int i = 0; i < results.Length; i++)
+            results[i] = ComputeCostDerivative(predictedOutputs[i], expectedOutputs[i]);
+        return results;
     }
 
     public double ComputeCostDerivative(double predictedOutput, double expectedOutput)

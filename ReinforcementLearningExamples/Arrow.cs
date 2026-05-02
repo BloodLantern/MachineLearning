@@ -10,7 +10,7 @@ namespace Arrows;
 public class Arrow : IComparable<Arrow>
 {
     private const float Speed = 100f;
-    public const float MaxAngleTilting = MathHelper.TwoPi * 2f;
+    public const float AngleTilting = MathHelper.TwoPi * 2f;
 
     public static Texture2D Texture;
     public static Vector2 Size = new(50f);
@@ -28,12 +28,12 @@ public class Arrow : IComparable<Arrow>
     public float LastAngleTilting { get; private set; }
 
     public double[] LastInputs { get; private set; }
-    public double LastOutput { get; private set; }
+    public double[] LastOutputs { get; private set; } = new double[Simulation.NetworkOutputCount];
     public double LastRewardGain { get; private set; }
-    public double LastEstimatedRewardGain { get; private set; }
+    public double LastQualityAverage { get; private set; }
 
     public double TotalReward { get; private set; }
-    public double TotalEstimatedReward { get; private set; }
+    public double TotalAverageQuality { get; private set; }
 
     private readonly Simulation simulation;
 
@@ -53,10 +53,9 @@ public class Arrow : IComparable<Arrow>
         Direction = Vector2.FromAngle(Angle);
 
         LastRewardGain = Simulation.ComputeReward(this);
-        LastEstimatedRewardGain = simulation.QLearner.EstimateReward(LastInputs) * Simulation.MaxReward;
 
         TotalReward += LastRewardGain;
-        TotalEstimatedReward += LastEstimatedRewardGain;
+        TotalAverageQuality += LastQualityAverage;
     }
 
     private void UpdatePosition(float deltaTime)
@@ -77,13 +76,25 @@ public class Arrow : IComparable<Arrow>
             TargetDirection.X,
             TargetDirection.Y,
 
-            LastOutput,
+            LastOutputs[0],
+            LastOutputs[1],
             LastRewardGain / 100.0
         ];
 
-        double singleOutput = simulation.Network.ComputeOutputs(LastInputs).Single();
-        LastOutput = singleOutput;
-        return (float) Math.Clamp(singleOutput, -1.0, 1.0) * MaxAngleTilting;
+        double[] qualities = simulation.QNetwork.ComputeActionQualities(LastInputs);
+        double[] outputs = simulation.QNetwork.ShouldExplore() ? simulation.QNetwork.ComputeExplorationQualities() : qualities;
+
+        LastOutputs = qualities;
+        LastQualityAverage = qualities.Average();
+
+        float result = 0f;
+
+        if (simulation.QNetwork.IsActionChosen(outputs[0]))
+            result -= AngleTilting;
+        if (simulation.QNetwork.IsActionChosen(outputs[1]))
+            result += AngleTilting;
+
+        return result;
     }
 
     public void Render(SpriteBatch spriteBatch, Color tintColor) => spriteBatch.Draw(

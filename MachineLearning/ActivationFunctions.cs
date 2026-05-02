@@ -6,6 +6,7 @@ namespace MachineLearning;
 
 public enum ActivationFunctionType
 {
+    Linear,
     /// <summary>
     /// Output range: [0, 1]
     /// </summary>
@@ -32,6 +33,7 @@ public interface IActivation
 
     public static IActivation FromType(ActivationFunctionType type) => type switch
     {
+        ActivationFunctionType.Linear => new LinearActivation(),
         ActivationFunctionType.Sigmoid => new SigmoidActivation(),
         ActivationFunctionType.HyperbolicTangent => new HyperbolicTangentActivation(),
         ActivationFunctionType.RectifiedLinearUnit => new RectifiedLinearUnitActivation(),
@@ -39,6 +41,15 @@ public interface IActivation
         ActivationFunctionType.Softmax => new SoftmaxActivation(),
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
     };
+}
+
+public class LinearActivation : IActivation
+{
+    public ActivationFunctionType ActivationFunctionType => ActivationFunctionType.Linear;
+
+    public double ComputeActivation(double[] inputs, int index) => inputs[index];
+
+    public double ComputeActivationDerivative(double[] inputs, int index) => 1.0;
 }
 
 public class SigmoidActivation : IActivation

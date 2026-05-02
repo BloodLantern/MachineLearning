@@ -1,0 +1,123 @@
+using System;
+using System.Diagnostics;
+using System.Linq;
+using JetBrains.Annotations;
+
+namespace MachineLearning.NeuralNetwork;
+
+[PublicAPI]
+public class QNetwork
+{
+    /// <summary>
+    /// The current neural network used to compute the action qualities.
+    /// </summary>
+    public NeuralNetwork Online { get; }
+
+    /// <summary>
+    /// A previous version of the <see cref="Online"/> network used to compute the cost.
+    /// </summary>
+    public NeuralNetwork Target { get; private set; }
+
+    public double DiscountFactor = 0.99;
+
+    public double ExplorationProbability = 0.95;
+
+    public double ActionChosenThreshold = 0.5;
+
+    public QNetwork(Random random, int inputCount, int outputCount, params int[] hiddenLayerSizes)
+    {
+        Online = new(random, CostFunctionType.MeanSquaredError, inputCount, outputCount, hiddenLayerSizes);
+        Online.SetOutputLayerActivationFunction(ActivationFunctionType.Sigmoid);
+        UpdateTargetNetwork();
+    }
+
+#if NET6_0_OR_GREATER
+    public QNetwork(int inputCount, int outputCount, params int[] hiddenLayerSizes)
+        : this(Random.Shared, inputCount, outputCount, hiddenLayerSizes) { }
+#endif
+
+    public bool ShouldExplore(Random random) => random.NextDouble() <= ExplorationProbability;
+
+#if NET6_0_OR_GREATER
+    public bool ShouldExplore() => ShouldExplore(Random.Shared);
+#endif
+
+    public double[] ComputeActionQualities(double[] state) => Online.ComputeOutputs(state);
+
+    public double[] ComputeExplorationQualities(Random random)
+    {
+        double[] result = new double[Online.OutputCount];
+        for (int i = 0; i < result.Length; i++)
+            result[i] = random.NextDouble();
+        return result;
+    }
+
+#if NET6_0_OR_GREATER
+    public double[] ComputeExplorationQualities() => ComputeExplorationQualities(Random.Shared);
+#endif
+
+    public bool[] ChooseActions(double[] state, Random random)
+        => (ShouldExplore(random) ? ComputeExplorationQualities(random) : ComputeActionQualities(state)).Select(IsActionChosen).ToArray();
+
+#if NET6_0_OR_GREATER
+    public bool[] ChooseActions(double[] state) => ChooseActions(state, Random.Shared);
+#endif
+
+    public bool IsActionChosen(double quality) => quality >= ActionChosenThreshold;
+
+    public void UpdateTargetNetwork() => Target = (NeuralNetwork) Online.Clone();
+
+    public void Learn(NeuralNetwork.TrainingData[] trainingData, double gain)
+    {
+        ICost[] costs = new ICost[trainingData.Length];
+        for (int i = 0; i < costs.Length; i++)
+        {
+            Cost cost = new(this);
+            cost.UpdateTargetResults(trainingData[i]);
+            costs[i] = cost;
+        }
+
+        Online.Learn(trainingData, gain, costs);
+    }
+
+    private class Cost : ICost
+    {
+        private readonly QNetwork qNetwork;
+
+        private readonly MeanSquaredErrorCost cost = new();
+
+        private double[] targetResults;
+
+        public Cost(QNetwork qNetwork) => this.qNetwork = qNetwork;
+
+        public void UpdateTargetResults(NeuralNetwork.TrainingData trainingData)
+            => targetResults = ComputeTargetResults(qNetwork, trainingData);
+
+        public static double[] ComputeTargetResults(QNetwork qNetwork, NeuralNetwork.TrainingData trainingData)
+        {
+            double[] onlineActions = qNetwork.Online.ComputeOutputs(trainingData.Inputs);
+            double[] targetActions = qNetwork.Target.ComputeOutputs(trainingData.NextInputs);
+            double[] results = new double[targetActions.Length];
+
+            for (int i = 0; i < targetActions.Length; i++)
+                results[i] = qNetwork.IsActionChosen(trainingData.ExpectedOutputs[i]) ? trainingData.Reward + qNetwork.DiscountFactor * targetActions[i] : onlineActions[i];
+
+            return results;
+        }
+
+        CostFunctionType ICost.CostFunctionType => CostFunctionType.MeanSquaredError;
+
+        // Here predictedOutputs are the outputs of the target network
+        public double ComputeCost(double[] predictedOutputs, double[] expectedOutputs)
+        {
+            Debug.Assert(targetResults != null);
+            return cost.ComputeCost(predictedOutputs, targetResults);
+        }
+
+        public double[] ComputeCostDerivative(double[] predictedOutputs, double[] expectedOutputs)
+        {
+            Debug.Assert(targetResults != null);
+            return cost.ComputeCostDerivative(predictedOutputs, targetResults);
+        }
+    }
+}

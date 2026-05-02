@@ -14,11 +14,10 @@ public static class SimulationImGui
 
     private static bool showRewardGraphs;
     private static bool showNeuralNetwork;
-    private static bool showQLearnerNeuralNetwork;
+    private static bool showQNetworkNeuralNetwork;
 
     private static List<float> rewardMedians = [];
-    private static List<float> estimatedRewardMedians = [];
-    private static List<float> rewardMediansDifferences = [];
+    private static List<float> averageQualityMedians = [];
 
     public static void DrawImGui(Simulation simulation, GameTime gameTime)
     {
@@ -29,17 +28,15 @@ public static class SimulationImGui
         ImGui.Text($"Arrow count: {simulation.Arrows.Length}");
         ImGui.Checkbox("Draw all arrows", ref simulation.DrawAllArrows);
 
-        ImGui.SliderDouble("Q-Learner gain", ref simulation.QLearnerGain, 0.0, 1.0);
-        ImGui.SliderDouble("Q-Learner discount factor", ref simulation.QLearnerDiscountFactor, 0.0, 1.0);
+        ImGui.SliderDouble("Q-Network gain", ref simulation.QNetworkGain, 0.0, 1.0);
+        ImGui.SliderDouble("Q-Network discount factor", ref simulation.QNetwork.DiscountFactor, 0.0, 1.0);
+        ImGui.SliderDouble("Q-Network exploration probability", ref simulation.QNetwork.ExplorationProbability, 0.0, 1.0);
 
         if (ImGui.DragFloat("Time between resets", ref simulation.NewTimeBetweenResets, 0.1f, 1f))
             simulation.TimeLeftBeforeReset = MathF.Min(simulation.TimeLeftBeforeReset, simulation.NewTimeBetweenResets);
         if (ImGui.Checkbox("Uncap FPS", ref simulation.SimulationSpeedUncapped))
         {
-            Application.Instance.TargetElapsedTime = TimeSpan.FromSeconds(1.0 / simulation.SimulationFrameRate);
-            Application.Instance.IsFixedTimeStep = simulation.SimulationSpeedUncapped;
-            Application.Instance.Graphics.SynchronizeWithVerticalRetrace = !simulation.SimulationSpeedUncapped;
-            Application.Instance.Graphics.ApplyChanges();
+            Application.Instance.UpdateUncappedFpsState();
         }
 
         if (!simulation.SimulationSpeedUncapped)
@@ -98,7 +95,7 @@ public static class SimulationImGui
 
         ImGui.Checkbox("Show reward graphs", ref showRewardGraphs);
 
-        ImGui.Checkbox("Show Q-Learner neural network", ref showQLearnerNeuralNetwork);
+        ImGui.Checkbox("Show QNetwork neural network", ref showQNetworkNeuralNetwork);
 
         ImGui.SeparatorText("MainArrow data");
 
@@ -106,20 +103,20 @@ public static class SimulationImGui
         ImGui.Text($"Position {mainArrow.Position}");
         ImGui.Text($"Angle {MathHelper.ToDegrees(mainArrow.Angle % MathHelper.TwoPi)}deg");
         Vector2 direction = new(MathF.Cos(mainArrow.Angle), -MathF.Sin(mainArrow.Angle));
-        ImGuiUtils.DirectionVector("Direction", ref direction, mainArrow.TargetDirection);
+        ImGui.DirectionVector("Direction", ref direction, mainArrow.TargetDirection);
 
         ImGui.Text($"Total reward {mainArrow.TotalReward}");
-        ImGui.Text($"Estimated total reward {mainArrow.TotalEstimatedReward}");
+        ImGui.Text($"Total average quality {mainArrow.TotalAverageQuality}");
 
         ImGui.Checkbox("Show neural network", ref showNeuralNetwork);
 
         ImGui.End();
 
-        if (showQLearnerNeuralNetwork)
-            DrawNeuralNetworkWindow(simulation.QLearner.Network, "QLearner");
+        if (showQNetworkNeuralNetwork)
+            DrawNeuralNetworkWindow(simulation.QNetwork.Online, "QNetwork");
 
         if (showNeuralNetwork)
-            DrawNeuralNetworkWindow(simulation.Network, "Simulation");
+            DrawNeuralNetworkWindow(simulation.QNetwork.Target, "Simulation");
 
         if (showRewardGraphs)
             DrawFitnessGraphWindow();
@@ -128,7 +125,7 @@ public static class SimulationImGui
     private static void DrawNeuralNetworkWindow(NeuralNetwork network, string name = null)
     {
         ImGui.Begin($"Neural Network {name}");
-        ImGuiUtils.DisplayNeuralNetwork(network);
+        ImGui.DisplayNeuralNetwork(network);
         ImGui.End();
     }
 
@@ -138,8 +135,7 @@ public static class SimulationImGui
 
         (List<float>, string)[] graphs = [
             (rewardMedians, nameof(rewardMedians)),
-            (estimatedRewardMedians, nameof(estimatedRewardMedians)),
-            (rewardMediansDifferences, nameof(rewardMediansDifferences)),
+            (averageQualityMedians, nameof(averageQualityMedians)),
         ];
 
         float minusWidth = 0f;
@@ -147,8 +143,7 @@ public static class SimulationImGui
             minusWidth = MathF.Max(minusWidth, ImGui.CalcTextSize(tuple.Item2).X);
 
         DrawGraph(rewardMedians, nameof(rewardMedians), minusWidth);
-        DrawGraph(estimatedRewardMedians, nameof(estimatedRewardMedians), minusWidth);
-        DrawGraph(rewardMediansDifferences, nameof(rewardMediansDifferences), minusWidth);
+        DrawGraph(averageQualityMedians, nameof(averageQualityMedians), minusWidth);
 
         ImGui.End();
     }
@@ -169,19 +164,15 @@ public static class SimulationImGui
 
     public static void UpdateRewardGraphsData(Simulation simulation)
     {
-        float estimatedRewardMedian = (float) simulation.Arrows.Median(n => n.TotalEstimatedReward);
-        estimatedRewardMedians.Add(estimatedRewardMedian);
+        float averageQualityMedian = (float) simulation.Arrows.Median(n => n.TotalAverageQuality);
+        averageQualityMedians.Add(averageQualityMedian);
         float rewardMedian = (float) simulation.Arrows.Median(a => a.TotalReward);
         rewardMedians.Add(rewardMedian);
-        rewardMediansDifferences.Add(MathF.Abs(rewardMedian - estimatedRewardMedian));
 
-        if (estimatedRewardMedians.Count > MaxRewardGraphSize)
-            estimatedRewardMedians = estimatedRewardMedians[^MaxRewardGraphSize..];
+        if (averageQualityMedians.Count > MaxRewardGraphSize)
+            averageQualityMedians = averageQualityMedians[^MaxRewardGraphSize..];
 
         if (rewardMedians.Count > MaxRewardGraphSize)
             rewardMedians = rewardMedians[^MaxRewardGraphSize..];
-
-        if (rewardMediansDifferences.Count > MaxRewardGraphSize)
-            rewardMediansDifferences = rewardMediansDifferences[^MaxRewardGraphSize..];
     }
 }
