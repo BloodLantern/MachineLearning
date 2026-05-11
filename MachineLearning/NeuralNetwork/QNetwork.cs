@@ -3,35 +3,39 @@ using System.Diagnostics;
 using System.Linq;
 using System.Xml.Serialization;
 using JetBrains.Annotations;
+using MessagePack;
 
 namespace MachineLearning.NeuralNetwork;
 
-[Serializable]
+[Serializable, MessagePackObject]
 [PublicAPI]
 public class QNetwork
 {
     /// <summary>
     /// The current neural network used to compute the action qualities.
     /// </summary>
-    [XmlElement]
+    [XmlElement, Key(0)]
     public NeuralNetwork Online { get; set; }
 
     /// <summary>
     /// A previous version of the <see cref="Online"/> network used to compute the cost.
     /// </summary>
-    [XmlIgnore]
+    [XmlIgnore, IgnoreMember]
     public NeuralNetwork Target { get; private set; }
 
+    [IgnoreMember]
     public int InputCount => Online.InputCount;
 
+    [IgnoreMember]
     public int HiddenLayerCount => Online.HiddenLayerCount;
 
+    [IgnoreMember]
     public int OutputNeuronCount => Online.OutputCount;
 
-    [XmlAttribute]
+    [XmlAttribute, Key(1)]
     public double DiscountFactor = 0.99;
 
-    [XmlAttribute]
+    [XmlAttribute, Key(2)]
     public double ExplorationProbability = 0.95;
 
     public QNetwork() { }

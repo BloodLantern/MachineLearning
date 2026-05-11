@@ -6,6 +6,7 @@ using ImGuiNET;
 using JetBrains.Annotations;
 using MachineLearning;
 using MachineLearning.NeuralNetwork;
+using MessagePack;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using MonoGame.Extended;
@@ -23,7 +24,7 @@ public class Simulation
     public const int NetworkOutputCount = 2;
     private readonly int[] networkHiddenNeuronsCount = [10, 10];
 
-    private const string SavePath = "network_save.xml";
+    private const string SavePath = "network_save.bin";
 
     private readonly RectangleF arrowSpawnBounds;
 
@@ -229,11 +230,11 @@ public class Simulation
         episodes.Add(ep);
     }
 
-    public void SaveNetwork() => QNetwork.Serialize(SavePath);
+    public void SaveNetwork() => QNetwork.SerializeBinary(SavePath, MessagePackSerializerOptions.Standard.WithCompression(MessagePackCompression.Lz4Block));
 
     public void LoadSavedNetwork()
     {
-        QNetwork = QNetwork.Deserialize(SavePath);
+        QNetwork = QNetwork.DeserializeBinaryFile(SavePath, MessagePackSerializerOptions.Standard.WithCompression(MessagePackCompression.Lz4Block));
         QNetwork.UpdateTargetNetwork();
 
         ResetSimulation(false);

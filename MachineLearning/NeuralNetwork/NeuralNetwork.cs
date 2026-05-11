@@ -3,39 +3,45 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using JetBrains.Annotations;
+using MessagePack;
 
 namespace MachineLearning.NeuralNetwork;
 
 // TODO - Add binary serialization
 
-[Serializable]
+[Serializable, MessagePackObject]
 [PublicAPI]
 public class NeuralNetwork : ICloneable
 {
     private const ActivationFunctionType DefaultHiddenLayerActivationFunctionType = ActivationFunctionType.RectifiedLinearUnit;
     private const ActivationFunctionType DefaultOutputLayerActivationFunctionType = ActivationFunctionType.Sigmoid;
 
-    [XmlElement]
+    [XmlElement, Key(0)]
     public Layer[] Layers;
 
+    [IgnoreMember]
     public int InputCount => Layers.First().PreviousLayerNeuronCount;
 
+    [IgnoreMember]
     public int HiddenLayerCount => Layers.Length - 1;
 
+    [IgnoreMember]
     public int OutputCount => OutputLayer.NeuronCount;
 
-    [XmlIgnore]
+    [XmlIgnore, IgnoreMember]
     public ICost CostFunction;
 
-    [XmlAttribute]
+    [XmlAttribute, Key(1)]
     public CostFunctionType CostFunctionType
     {
         get => CostFunction.CostFunctionType;
         set => CostFunction = ICost.FromType(value);
     }
 
+    [IgnoreMember]
     public Layer[] HiddenLayers => Layers[..^1];
 
+    [IgnoreMember]
     public Layer OutputLayer => Layers.Last();
 
     private LearnData[] batchLearnData;

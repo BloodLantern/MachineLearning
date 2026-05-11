@@ -1,29 +1,38 @@
 ﻿using System;
 using System.Xml.Serialization;
+using MessagePack;
 
 namespace MachineLearning.NeuralNetwork;
 
-[Serializable]
+[Serializable, MessagePackObject]
 public class Layer : ICloneable
 {
+    [Key(0)]
     public int PreviousLayerNeuronCount;
+    [Key(1)]
     public int NeuronCount;
 
+    [Key(2)]
     public double[] Weights;
+    [Key(3)]
     public double[] Biases;
 
     // Cost gradient with respect to weights and with respect to biases
+    [Key(4)]
     public double[] WeightCostGradients;
+    [Key(5)]
     public double[] BiasCostGradients;
 
     // Used for adding momentum to gradient descent
+    [Key(6)]
     public double[] WeightVelocities;
+    [Key(7)]
     public double[] BiasVelocities;
 
-    [XmlIgnore]
+    [XmlIgnore, IgnoreMember]
     public IActivation ActivationFunction = IActivation.FromType(ActivationFunctionType.Sigmoid);
 
-    [XmlAttribute(nameof(ActivationFunction))]
+    [XmlAttribute(nameof(ActivationFunction)), Key(8)]
     public ActivationFunctionType ActivationFunctionType
     {
         get => ActivationFunction.ActivationFunctionType;
