@@ -7,8 +7,6 @@ using MessagePack;
 
 namespace MachineLearning.NeuralNetwork;
 
-// TODO - Add binary serialization
-
 [Serializable, MessagePackObject]
 [PublicAPI]
 public class NeuralNetwork : ICloneable
