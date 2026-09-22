@@ -64,4 +64,11 @@ public static class Utils
     public static float BoolToFloat(bool value) => value ? 1f : 0f;
 
     public static bool Approximately(double a, double b, double tolerance = 1e-5) => Math.Abs(a - b) < tolerance;
+
+    public static double Clamp(double value, double min, double max)
+    #if NET6_0_OR_GREATER
+        => Math.Clamp(value, min, max);
+    #else
+        => Math.Min(max, Math.Max(min, value));
+    #endif
 }

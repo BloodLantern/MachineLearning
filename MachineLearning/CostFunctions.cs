@@ -18,7 +18,10 @@ public interface ICost
     double ComputeCost(double[] predictedOutputs, double[] expectedOutputs);
 
     double[] ComputeCostDerivative(double[] predictedOutputs, double[] expectedOutputs);
+}
 
+public static class Cost
+{
     public static ICost FromType(CostFunctionType type) => type switch
     {
         CostFunctionType.MeanSquaredError => new MeanSquaredErrorCost(),

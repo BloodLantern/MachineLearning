@@ -33,11 +33,11 @@ public class NeuralNetwork : ICloneable
     public CostFunctionType CostFunctionType
     {
         get => CostFunction.CostFunctionType;
-        set => CostFunction = ICost.FromType(value);
+        set => CostFunction = Cost.FromType(value);
     }
 
     [IgnoreMember]
-    public Layer[] HiddenLayers => Layers[..^1];
+    public Layer[] HiddenLayers => [..Layers.Take(Layers.Length - 1)];
 
     [IgnoreMember]
     public Layer OutputLayer => Layers.Last();
@@ -73,17 +73,17 @@ public class NeuralNetwork : ICloneable
         for (int i = 1; i < Layers.Length - 1; i++)
             Layers[i] = new(hiddenLayerSizes[i - 1], hiddenLayerSizes[i], random) { ActivationFunctionType = DefaultHiddenLayerActivationFunctionType };
 
-        Layers[^1] = new(hiddenLayerSizes[^1], outputCount, random) { ActivationFunctionType = DefaultOutputLayerActivationFunctionType };
+        Layers[Layers.Length - 1] = new(hiddenLayerSizes.Last(), outputCount, random) { ActivationFunctionType = DefaultOutputLayerActivationFunctionType };
     }
 
     public void SetHiddenLayersActivationFunction(ActivationFunctionType activationFunctionType)
     {
         foreach (Layer layer in HiddenLayers)
-            layer.ActivationFunction = IActivation.FromType(activationFunctionType);
+            layer.ActivationFunction = Activation.FromType(activationFunctionType);
     }
 
     public void SetOutputLayerActivationFunction(ActivationFunctionType activationFunctionType)
-        => OutputLayer.ActivationFunction = IActivation.FromType(activationFunctionType);
+        => OutputLayer.ActivationFunction = Activation.FromType(activationFunctionType);
 
     public double[] ComputeOutputs(double[] inputs)
     {

@@ -30,13 +30,13 @@ public class Layer : ICloneable
     public double[] BiasVelocities;
 
     [XmlIgnore, IgnoreMember]
-    public IActivation ActivationFunction = IActivation.FromType(ActivationFunctionType.Sigmoid);
+    public IActivation ActivationFunction = Activation.FromType(ActivationFunctionType.Sigmoid);
 
     [XmlAttribute(nameof(ActivationFunction)), Key(8)]
     public ActivationFunctionType ActivationFunctionType
     {
         get => ActivationFunction.ActivationFunctionType;
-        set => ActivationFunction = IActivation.FromType(value);
+        set => ActivationFunction = Activation.FromType(value);
     }
 
     public Layer() { }
@@ -132,7 +132,7 @@ public class Layer : ICloneable
         for (int i = 0; i < Weights.Length; i++)
         {
             double weight = Weights[i];
-            double velocity = WeightVelocities[i] * momentum - Math.Clamp(WeightCostGradients[i], -GradientCap, GradientCap) * gain;
+            double velocity = WeightVelocities[i] * momentum - Utils.Clamp(WeightCostGradients[i], -GradientCap, GradientCap) * gain;
             WeightVelocities[i] = velocity;
             Weights[i] = weight * weightDecay + velocity;
             WeightCostGradients[i] = 0.0;
@@ -140,7 +140,7 @@ public class Layer : ICloneable
 
         for (int i = 0; i < Biases.Length; i++)
         {
-            double velocity = BiasVelocities[i] * momentum - Math.Clamp(BiasCostGradients[i], -GradientCap, GradientCap) * gain;
+            double velocity = BiasVelocities[i] * momentum - Utils.Clamp(BiasCostGradients[i], -GradientCap, GradientCap) * gain;
             BiasVelocities[i] = velocity;
             Biases[i] += velocity;
             BiasCostGradients[i] = 0.0;
@@ -243,7 +243,7 @@ public class Layer : ICloneable
         return Equals((Layer) obj);
     }
 
-    public override int GetHashCode() => HashCode.Combine(Weights, Biases);
+    public override int GetHashCode() => Weights.GetHashCode() ^ Biases.GetHashCode();
 
     public static bool operator==(Layer left, Layer right) => Equals(left, right);
 

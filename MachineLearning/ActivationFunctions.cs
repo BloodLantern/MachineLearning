@@ -30,7 +30,10 @@ public interface IActivation
     double ComputeActivation(double[] inputs, int index);
 
     double ComputeActivationDerivative(double[] inputs, int index);
+}
 
+public static class Activation
+{
     public static IActivation FromType(ActivationFunctionType type) => type switch
     {
         ActivationFunctionType.Linear => new LinearActivation(),
