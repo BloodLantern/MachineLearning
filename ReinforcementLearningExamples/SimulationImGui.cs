@@ -72,11 +72,14 @@ public static class SimulationImGui
 
         ImGui.Checkbox("Running", ref simulation.Running);
 
-        if (ImGui.Button("Randomize arrow spawn"))
-            simulation.RandomizeArrowSpawn();
+        if (ImGui.Button("Randomize arrow spawn position"))
+            simulation.RandomizeArrowSpawnPosition();
+
+        if (ImGui.Button("Randomize arrow spawn angle"))
+            simulation.RandomizeArrowSpawnAngle();
 
         if (ImGui.Button("Next generation"))
-            simulation.ResetSimulation(true);
+            simulation.Reset(true);
 
         if (simulation.Running)
             ImGui.BeginDisabled();

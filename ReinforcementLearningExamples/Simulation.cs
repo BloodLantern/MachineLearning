@@ -50,6 +50,7 @@ public class Simulation
 
     public Vector2 TargetPosition { get; private set; }
     public Vector2 StartingArrowPosition { get; private set; }
+    public float StartingArrowAngle { get; private set; }
     private const float DeltaTime = 1f / 60f;
 
     public float TimeBetweenResets { get; private set; }
@@ -90,7 +91,8 @@ public class Simulation
 
     private void InitializeArrows()
     {
-        RandomizeArrowSpawn();
+        RandomizeArrowSpawnPosition();
+        RandomizeArrowSpawnAngle();
 
         Arrows = new Arrow[ArrowCount];
 
@@ -98,12 +100,13 @@ public class Simulation
         {
             Arrows[i] = new(StartingArrowPosition, this)
             {
-                Angle = GetRandomArrowAngle()
+                Angle = StartingArrowAngle
             };
         }
     }
 
-    public void RandomizeArrowSpawn() => StartingArrowPosition = GetRandomArrowSpawn();
+    public void RandomizeArrowSpawnPosition() => StartingArrowPosition = GetRandomArrowSpawnPosition();
+    public void RandomizeArrowSpawnAngle() => StartingArrowAngle = GetRandomArrowSpawnAngle();
 
     public void Update()
     {
@@ -148,7 +151,7 @@ public class Simulation
         }
 
         if (TimeLeftBeforeReset <= 0f)
-            ResetSimulation(true);
+            Reset(true);
 
         TimeLeftBeforeReset -= DeltaTime;
 
@@ -175,18 +178,18 @@ public class Simulation
         spriteBatch.End();
     }
 
-    public void ResetSimulation(bool evolve)
+    public void Reset(bool evolve)
     {
         SimulationImGui.UpdateRewardGraphsData(this);
 
         if (evolve)
-            EvolveSimulation();
+            Evolve();
 
         for (int i = 0; i < Arrows.Length; i++)
         {
             Arrows[i] = new(StartingArrowPosition, this)
             {
-                Angle = GetRandomArrowAngle()
+                Angle = StartingArrowAngle
             };
         }
 
@@ -200,7 +203,7 @@ public class Simulation
         CurrentIteration++;
     }
 
-    private void EvolveSimulation()
+    private void Evolve()
     {
         UpdatingQLearner = true;
 
@@ -215,7 +218,7 @@ public class Simulation
                     trainingData.AddRange(random.GetItems(episode.Iterations.ToArray(), random.Next(1, TrainingIterationCount - trainingData.Count)));
                 }
 
-                QNetwork.Learn(trainingData.Select(i => (NeuralNetwork.TrainingData) i).ToArray(), QNetworkGain);
+                QNetwork.Learn([..trainingData.Select(i => (NeuralNetwork.TrainingData) i)], QNetworkGain);
 
                 AddNewEpisode();
             })
@@ -237,15 +240,15 @@ public class Simulation
         QNetwork = QNetwork.DeserializeBinaryFile(SavePath, MessagePackSerializerOptions.Standard.WithCompression(MessagePackCompression.Lz4Block));
         QNetwork.UpdateTargetNetwork();
 
-        ResetSimulation(false);
+        Reset(false);
     }
 
     [MustUseReturnValue]
-    private Vector2 GetRandomArrowSpawn()
+    private Vector2 GetRandomArrowSpawnPosition()
         => random.NextVector2() * ((Point2) arrowSpawnBounds.Size - arrowSpawnBounds.Position) + arrowSpawnBounds.Position;
 
     [MustUseReturnValue]
-    private float GetRandomArrowAngle() => random.NextSingle() * MathHelper.TwoPi;
+    private float GetRandomArrowSpawnAngle() => random.NextSingle() * MathHelper.TwoPi;
 
     public static double ComputeReward(Arrow arrow)
     {
